@@ -64,17 +64,19 @@ const SwipeContainer = () => {
         setLoading(true);
         console.log("Fetching templates from API...");
         console.log("API baseURL from component:", templateApi);
-        
+
         // Try a direct fetch to test the API connection
         try {
-          const testResponse = await fetch('http://localhost:5000/api/templates');
-          console.log('Direct fetch test response:', testResponse);
+          const testResponse = await fetch(
+            "http://localhost:5000/api/templates"
+          );
+          console.log("Direct fetch test response:", testResponse);
           const testData = await testResponse.json();
-          console.log('Direct fetch test data:', testData);
+          console.log("Direct fetch test data:", testData);
         } catch (testErr) {
-          console.error('Direct fetch test failed:', testErr);
+          console.error("Direct fetch test failed:", testErr);
         }
-        
+
         // Use getAll instead of discover to avoid pagination issues
         const response = await templateApi.getAll();
         console.log("API response:", response);
@@ -87,7 +89,7 @@ const SwipeContainer = () => {
           status: err.response?.status,
           statusText: err.response?.statusText,
           data: err.response?.data,
-          config: err.config
+          config: err.config,
         });
         setError("Failed to load templates. Please try again later.");
         setLoading(false);
@@ -114,7 +116,7 @@ const SwipeContainer = () => {
   const handleFavorite = (templateId) => {
     if (isAuthenticated && currentUser) {
       interactionApi.favoriteTemplate(currentUser._id, templateId);
-      
+
       // Also add to user's favorites collection
       userApi.addToFavorites(currentUser._id, templateId);
     } else {
