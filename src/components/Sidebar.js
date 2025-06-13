@@ -6,9 +6,11 @@ import {
   Add,
   Favorite,
   Person,
-  MoreHoriz,
+  Settings,
+  Bookmark,
+  Lightbulb,
 } from "@mui/icons-material";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const SidebarContainer = styled.div`
@@ -16,107 +18,194 @@ const SidebarContainer = styled.div`
   left: 0;
   top: 0;
   bottom: 0;
-  width: 80px;
-  background-color: #000;
+  width: 240px;
+  background-color: var(--background-sidebar);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 20px 0;
+  padding: 24px 0;
   z-index: 100;
-  color: white;
+  color: var(--text-primary);
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  
+  @media (max-width: 768px) {
+    display: none; /* Hide on mobile, will be replaced with bottom navigation */
+  }
+`;
+
+const LogoContainer = styled.div`
+  padding: 0 24px;
+  margin-bottom: 32px;
 `;
 
 const Logo = styled.div`
-  margin-bottom: 30px;
-  color: #fe2c55;
-  font-size: 24px;
-  font-weight: bold;
+  color: var(--primary-main);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+`;
+
+const LogoSubtitle = styled.div`
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-top: 4px;
+  font-weight: 500;
+`;
+
+const SidebarSection = styled.div`
+  margin-bottom: 24px;
+`;
+
+const SectionTitle = styled.div`
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 0 24px;
+  margin-bottom: 12px;
 `;
 
 const SidebarOption = styled.div`
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 15px 0;
+  padding: 12px 24px;
   cursor: pointer;
   width: 100%;
-  color: ${(props) => (props.active ? "#fe2c55" : "white")};
+  color: ${(props) => (props.active ? "var(--primary-main)" : "var(--text-primary)")};
+  background-color: ${(props) => (props.active ? "rgba(255, 88, 100, 0.1)" : "transparent")};
+  border-left: ${(props) => (props.active ? "3px solid var(--primary-main)" : "3px solid transparent")};
+  transition: all 0.2s ease;
 
   &:hover {
-    background-color: #121212;
+    background-color: ${(props) => (props.active ? "rgba(255, 88, 100, 0.1)" : "rgba(0, 0, 0, 0.03)")};
+    color: var(--primary-main);
   }
 `;
 
 const SidebarText = styled.span`
-  font-size: 12px;
-  margin-top: 5px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-left: 16px;
 `;
 
 const LoginButton = styled.button`
+  margin: 24px;
   margin-top: auto;
-  background-color: transparent;
-  border: 1px solid #fe2c55;
-  color: #fe2c55;
-  padding: 8px 16px;
-  border-radius: 4px;
+  background-color: var(--primary-main);
+  border: none;
+  color: white;
+  padding: 12px 0;
+  border-radius: 8px;
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(255, 88, 100, 0.3);
 
   &:hover {
-    background-color: rgba(254, 44, 85, 0.1);
+    background-color: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 88, 100, 0.4);
   }
+`;
+
+const FooterText = styled.div`
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-align: center;
+  padding: 16px 24px;
 `;
 
 function Sidebar() {
   const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  
+  const isActive = (path) => location.pathname === path;
 
   return (
     <SidebarContainer>
-      <Logo>TL</Logo>
+      <LogoContainer>
+        <Logo>Templi</Logo>
+        <LogoSubtitle>Template Explorer</LogoSubtitle>
+      </LogoContainer>
 
-      <Link to="/" style={{ textDecoration: "none", width: "100%" }}>
-        <SidebarOption active>
-          <Home />
-          <SidebarText>Pour toi</SidebarText>
+      <SidebarSection>
+        <SectionTitle>Discover</SectionTitle>
+        
+        <Link to="/" style={{ textDecoration: "none" }}>
+          <SidebarOption active={isActive("/")}>
+            <Home />
+            <SidebarText>For You</SidebarText>
+          </SidebarOption>
+        </Link>
+
+        <Link to="/explore" style={{ textDecoration: "none" }}>
+          <SidebarOption active={isActive("/explore")}>
+            <Explore />
+            <SidebarText>Explore</SidebarText>
+          </SidebarOption>
+        </Link>
+        
+        <Link to="/trending" style={{ textDecoration: "none" }}>
+          <SidebarOption active={isActive("/trending")}>
+            <Lightbulb />
+            <SidebarText>Trending</SidebarText>
+          </SidebarOption>
+        </Link>
+      </SidebarSection>
+      
+      {isAuthenticated && (
+        <SidebarSection>
+          <SectionTitle>Library</SectionTitle>
+          
+          <Link to="/favorites" style={{ textDecoration: "none" }}>
+            <SidebarOption active={isActive("/favorites")}>
+              <Favorite />
+              <SidebarText>Favorites</SidebarText>
+            </SidebarOption>
+          </Link>
+          
+          <Link to="/saved" style={{ textDecoration: "none" }}>
+            <SidebarOption active={isActive("/saved")}>
+              <Bookmark />
+              <SidebarText>Saved</SidebarText>
+            </SidebarOption>
+          </Link>
+        </SidebarSection>
+      )}
+      
+      <SidebarSection>
+        <SectionTitle>Create</SectionTitle>
+        
+        <Link to="/upload" style={{ textDecoration: "none" }}>
+          <SidebarOption active={isActive("/upload")}>
+            <Add />
+            <SidebarText>Upload</SidebarText>
+          </SidebarOption>
+        </Link>
+      </SidebarSection>
+
+      {isAuthenticated ? (
+        <Link to="/profile" style={{ textDecoration: "none" }}>
+          <SidebarOption active={isActive("/profile")}>
+            <Person />
+            <SidebarText>Profile</SidebarText>
+          </SidebarOption>
+        </Link>
+      ) : (
+        <LoginButton onClick={() => document.dispatchEvent(new CustomEvent('openAuthModal'))}>Sign In</LoginButton>
+      )}
+      
+      <Link to="/settings" style={{ textDecoration: "none", marginTop: "auto" }}>
+        <SidebarOption active={isActive("/settings")}>
+          <Settings />
+          <SidebarText>Settings</SidebarText>
         </SidebarOption>
       </Link>
-
-      <Link to="/explore" style={{ textDecoration: "none", width: "100%" }}>
-        <SidebarOption>
-          <Explore />
-          <SidebarText>Explorer</SidebarText>
-        </SidebarOption>
-      </Link>
-
-      <Link to="/upload" style={{ textDecoration: "none", width: "100%" }}>
-        <SidebarOption>
-          <Add />
-          <SidebarText>Importer</SidebarText>
-        </SidebarOption>
-      </Link>
-
-      <Link to="/live" style={{ textDecoration: "none", width: "100%" }}>
-        <SidebarOption>
-          <Favorite />
-          <SidebarText>LIVE</SidebarText>
-        </SidebarOption>
-      </Link>
-
-      <Link to="/profile" style={{ textDecoration: "none", width: "100%" }}>
-        <SidebarOption>
-          <Person />
-          <SidebarText>Profil</SidebarText>
-        </SidebarOption>
-      </Link>
-
-      <Link to="/more" style={{ textDecoration: "none", width: "100%" }}>
-        <SidebarOption>
-          <MoreHoriz />
-          <SidebarText>Plus</SidebarText>
-        </SidebarOption>
-      </Link>
-
-      {!isAuthenticated && <LoginButton>Se connecter</LoginButton>}
+      
+      <FooterText>© 2023 Templi</FooterText>
     </SidebarContainer>
   );
 }

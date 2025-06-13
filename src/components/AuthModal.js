@@ -18,12 +18,12 @@ const ModalOverlay = styled.div`
 
 const ModalContent = styled.div`
   background-color: white;
-  border-radius: 10px;
+  border-radius: 16px;
   width: 90%;
   max-width: 400px;
-  padding: 20px;
+  padding: 24px;
   position: relative;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 `;
 
 const CloseButton = styled.button`
@@ -47,17 +47,17 @@ const Tabs = styled.div`
 
 const Tab = styled.button`
   flex: 1;
-  padding: 10px;
+  padding: 12px;
   background: none;
   border: none;
   border-bottom: 2px solid
-    ${(props) => (props.active ? "#fe2c55" : "transparent")};
-  color: ${(props) => (props.active ? "#fe2c55" : "#888")};
+    ${(props) => (props.active ? "var(--primary-main)" : "transparent")};
+  color: ${(props) => (props.active ? "var(--primary-main)" : "var(--text-secondary)")};
   font-weight: ${(props) => (props.active ? "bold" : "normal")};
   cursor: pointer;
   transition: all 0.3s ease;
   &:hover {
-    color: #fe2c55;
+    color: var(--primary-main);
   }
 `;
 
@@ -67,46 +67,59 @@ const Form = styled.form`
 `;
 
 const Input = styled.input`
-  padding: 12px 15px;
-  margin-bottom: 15px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
   border: 1px solid #ddd;
-  border-radius: 5px;
+  border-radius: 8px;
   font-size: 16px;
+  transition: all 0.2s ease;
   &:focus {
     outline: none;
-    border-color: #fe2c55;
+    border-color: var(--primary-main);
+    box-shadow: 0 0 0 3px rgba(255, 88, 100, 0.1);
   }
 `;
 
 const Button = styled.button`
-  padding: 12px 15px;
-  background-color: #fe2c55;
+  padding: 14px 16px;
+  background-color: var(--primary-main);
   color: white;
   border: none;
-  border-radius: 5px;
+  border-radius: 8px;
   font-size: 16px;
   font-weight: bold;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(255, 88, 100, 0.3);
   &:hover {
-    background-color: #e6264f;
+    background-color: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 88, 100, 0.4);
   }
   &:disabled {
     background-color: #ffb3c0;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
   }
 `;
 
 const ErrorMessage = styled.div`
-  color: #e6264f;
-  margin-bottom: 15px;
+  color: var(--status-error);
+  margin-bottom: 16px;
   font-size: 14px;
+  padding: 8px 12px;
+  background-color: rgba(231, 76, 60, 0.1);
+  border-radius: 6px;
 `;
 
 const SuccessMessage = styled.div`
-  color: #28a745;
-  margin-bottom: 15px;
+  color: var(--status-success);
+  margin-bottom: 16px;
   font-size: 14px;
+  padding: 8px 12px;
+  background-color: rgba(46, 204, 113, 0.1);
+  border-radius: 6px;
 `;
 
 const AuthModal = ({ isOpen, onClose }) => {

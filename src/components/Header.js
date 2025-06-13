@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import styled from "styled-components";
-import { Person, Forum, ExitToApp } from "@mui/icons-material";
-import { IconButton, Button } from "@mui/material";
+import { Person, Forum, ExitToApp, Search, Notifications } from "@mui/icons-material";
+import { IconButton, Button, Avatar, Badge, InputBase } from "@mui/material";
 import AuthModal from "./AuthModal";
 import { useAuth } from "../context/AuthContext";
 
@@ -9,23 +9,66 @@ const HeaderContainer = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #f9f9f9;
-  padding: 10px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 12px 24px;
+  height: 64px;
   z-index: 100;
-  background-color: white;
-  margin-left: 80px; /* Space for sidebar */
+  background-color: var(--background-paper);
+  margin-left: 240px; /* Space for sidebar */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  
+  @media (max-width: 768px) {
+    margin-left: 0;
+    padding: 12px 16px;
+  }
+`;
+
+const HeaderSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+`;
+
+const SearchBar = styled.div`
+  display: flex;
+  align-items: center;
+  background-color: var(--background-default);
+  border-radius: 24px;
+  padding: 4px 16px;
+  width: 300px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  
+  @media (max-width: 1024px) {
+    width: 200px;
+  }
+  
+  @media (max-width: 768px) {
+    display: none;
+  }
+`;
+
+const SearchInput = styled(InputBase)`
+  && {
+    flex: 1;
+    font-size: 14px;
+    color: var(--text-primary);
+    margin-left: 8px;
+  }
 `;
 
 const AuthButton = styled(Button)`
   && {
-    background-color: #fe2c55;
+    background-color: var(--primary-main);
     color: white;
-    font-weight: bold;
-    border-radius: 4px;
-    padding: 6px 16px;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 8px 20px;
     text-transform: none;
+    box-shadow: 0 2px 8px rgba(255, 88, 100, 0.3);
     &:hover {
-      background-color: #e6264f;
+      background-color: var(--primary-dark);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(255, 88, 100, 0.4);
     }
   }
 `;
@@ -33,18 +76,45 @@ const AuthButton = styled(Button)`
 const ProfileSection = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 `;
 
-const Logo = styled.img`
-  height: 40px;
-  object-fit: contain;
+const UserName = styled.span`
+  font-weight: 500;
+  color: var(--text-primary);
+  
+  @media (max-width: 768px) {
+    display: none;
+  }
+`;
+
+const UserAvatar = styled(Avatar)`
+  && {
+    width: 36px;
+    height: 36px;
+    background-color: var(--primary-light);
+  }
+`;
+
+const StyledIconButton = styled(IconButton)`
+  && {
+    color: var(--text-secondary);
+    &:hover {
+      color: var(--primary-main);
+      background-color: rgba(255, 88, 100, 0.08);
+    }
+  }
 `;
 
 const LogoText = styled.h2`
-  color: #fe2c55;
-  font-weight: bold;
+  color: var(--primary-main);
+  font-weight: 700;
   margin: 0;
+  font-size: 24px;
+  
+  @media (min-width: 769px) {
+    display: none; /* Hide on desktop as it's shown in sidebar */
+  }
 `;
 
 function Header() {
@@ -59,32 +129,45 @@ function Header() {
     logout();
   };
 
+  // Listen for openAuthModal event from Sidebar or MobileNavigation
+  React.useEffect(() => {
+    const handleOpenAuthModal = () => setShowAuthModal(true);
+    document.addEventListener('openAuthModal', handleOpenAuthModal);
+    return () => document.removeEventListener('openAuthModal', handleOpenAuthModal);
+  }, []);
+
   return (
     <HeaderContainer>
-      {isAuthenticated ? (
-        <ProfileSection>
-          <IconButton>
-            <Person fontSize="large" />
-          </IconButton>
-          <span>{currentUser?.username}</span>
-        </ProfileSection>
-      ) : (
-        <AuthButton variant="contained" onClick={handleAuthClick}>
-          Sign Up
-        </AuthButton>
-      )}
-
       <LogoText>Templi</LogoText>
-
-      {isAuthenticated ? (
-        <IconButton onClick={handleLogout} title="Logout">
-          <ExitToApp fontSize="large" />
-        </IconButton>
-      ) : (
-        <IconButton>
-          <Forum fontSize="large" />
-        </IconButton>
-      )}
+      
+      <SearchBar>
+        <Search fontSize="small" style={{ color: 'var(--text-secondary)' }} />
+        <SearchInput placeholder="Search templates..." />
+      </SearchBar>
+      
+      <HeaderSection>
+        {isAuthenticated ? (
+          <>
+            <StyledIconButton size="medium">
+              <Badge badgeContent={3} color="error">
+                <Notifications />
+              </Badge>
+            </StyledIconButton>
+            
+            <ProfileSection>
+              <UserName>{currentUser?.username || 'User'}</UserName>
+              <UserAvatar>{currentUser?.username?.[0]?.toUpperCase() || 'U'}</UserAvatar>
+              <StyledIconButton onClick={handleLogout} title="Logout" size="small">
+                <ExitToApp />
+              </StyledIconButton>
+            </ProfileSection>
+          </>
+        ) : (
+          <AuthButton variant="contained" onClick={handleAuthClick}>
+            Sign Up
+          </AuthButton>
+        )}
+      </HeaderSection>
 
       <AuthModal
         isOpen={showAuthModal}
