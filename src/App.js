@@ -6,6 +6,7 @@ import SwipeContainer from "./components/SwipeContainer";
 import Sidebar from "./components/Sidebar";
 import MobileNavigation from "./components/MobileNavigation";
 import ExplorePage from "./pages/ExplorePage";
+import UploadPage from "./pages/UploadPage";
 import styled from "styled-components";
 import { AuthProvider } from "./context/AuthContext";
 import theme from "./theme";
@@ -45,10 +46,7 @@ function App() {
           <Routes>
             <Route path="/" element={<SwipeContainer />} />
             <Route path="/explore" element={<ExplorePage />} />
-            <Route
-              path="/upload"
-              element={<PageWrapper>Upload Page</PageWrapper>}
-            />
+            <Route path="/upload" element={<UploadPage />} />
             <Route
               path="/favorites"
               element={<PageWrapper>Favorites Page</PageWrapper>}

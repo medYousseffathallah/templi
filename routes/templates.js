@@ -15,27 +15,73 @@ router.get("/", async (req, res) => {
 // Get templates with pagination and filtering
 router.get("/discover", async (req, res) => {
   try {
-    const { page = 1, limit = 10, category, tags } = req.query;
+    const { 
+      page = 1, 
+      limit = 10, 
+      category, 
+      subCategory,
+      tags,
+      frameworkTools,
+      pricingTier,
+      colorScheme,
+      responsive,
+      accessibilityLevel,
+      languageSupport,
+      sort = 'createdAt'
+    } = req.query;
 
     // Build filter object
     const filter = {};
+    
+    // Basic filters
     if (category) filter.category = category;
+    if (subCategory) filter.subCategory = subCategory;
+    
+    // Array filters
     if (tags) {
       const tagArray = tags.split(",");
       filter.tags = { $in: tagArray };
+    }
+    
+    if (frameworkTools) {
+      const toolsArray = frameworkTools.split(",");
+      filter.frameworkTools = { $in: toolsArray };
+    }
+    
+    // Pricing filter
+    if (pricingTier) filter.pricingTier = pricingTier;
+    
+    // Design specification filters
+    if (colorScheme) filter['designSpecs.colorScheme'] = colorScheme;
+    if (responsive !== undefined) filter['designSpecs.responsive'] = responsive === 'true';
+    if (accessibilityLevel) filter['designSpecs.accessibilityLevel'] = accessibilityLevel;
+    if (languageSupport) filter['designSpecs.languageSupport'] = languageSupport;
+    
+    // Determine sort order
+    let sortOption = { createdAt: -1 }; // Default sort by newest
+    
+    if (sort === 'likes') {
+      sortOption = { likes: -1 };
+    } else if (sort === 'title') {
+      sortOption = { title: 1 };
     }
 
     // Execute query with pagination
     const templates = await Template.find(filter)
       .limit(limit * 1)
       .skip((page - 1) * limit)
-      .sort({ createdAt: -1 });
+      .sort(sortOption);
 
     // Get total documents count
     const count = await Template.countDocuments(filter);
 
-    // Return just the templates array to match what the frontend expects
-    res.json(templates);
+    // Return templates with pagination metadata
+    res.json({
+      templates,
+      totalPages: Math.ceil(count / limit),
+      currentPage: page,
+      totalTemplates: count
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -48,17 +94,81 @@ router.get("/:id", getTemplate, (req, res) => {
 
 // Create a template
 router.post("/", async (req, res) => {
+  // Validate required fields
+  const requiredFields = ['title', 'description', 'category', 'subCategory'];
+  const missingFields = requiredFields.filter(field => !req.body[field]);
+  
+  if (missingFields.length > 0) {
+    return res.status(400).json({ 
+      message: `Missing required fields: ${missingFields.join(', ')}` 
+    });
+  }
+
+  // Validate that at least one visual preview is provided
+  if ((!req.body.imageUrls || req.body.imageUrls.length === 0) && !req.body.videoUrl) {
+    return res.status(400).json({ 
+      message: 'At least one image or video URL is required' 
+    });
+  }
+
+  // Validate that at least one framework/tool is selected
+  if (!req.body.frameworkTools || req.body.frameworkTools.length === 0) {
+    return res.status(400).json({ 
+      message: 'At least one framework or tool must be selected' 
+    });
+  }
+
+  // Validate description length
+  if (req.body.description.length < 100 || req.body.description.length > 500) {
+    return res.status(400).json({ 
+      message: 'Description must be between 100 and 500 characters' 
+    });
+  }
+
+  // Validate title length
+  if (req.body.title.length > 60) {
+    return res.status(400).json({ 
+      message: 'Title must be 60 characters or less' 
+    });
+  }
+
+  // Validate tags (maximum 5)
+  if (req.body.tags && req.body.tags.length > 5) {
+    return res.status(400).json({ 
+      message: 'Maximum of 5 tags allowed' 
+    });
+  }
+
+  // Create the template with all fields
   const template = new Template({
     title: req.body.title,
     description: req.body.description,
-    imageUrl: req.body.imageUrl,
-    tags: req.body.tags,
+    imageUrls: req.body.imageUrls || [],
+    videoUrl: req.body.videoUrl,
+    tags: req.body.tags || [],
     category: req.body.category,
+    subCategory: req.body.subCategory,
+    frameworkTools: req.body.frameworkTools,
+    githubLink: req.body.githubLink,
+    isPrivateRepo: req.body.isPrivateRepo || false,
+    designSpecs: {
+      colorScheme: req.body.colorScheme || 'Light',
+      responsive: req.body.responsive !== undefined ? req.body.responsive : true,
+      accessibilityLevel: req.body.accessibilityLevel || 'Not Tested',
+      languageSupport: req.body.languageSupport || 'English',
+    },
+    pricingTier: req.body.pricingTier || 'Free',
+    price: req.body.price || 0,
     creator: req.body.creator, // In a real app, this would come from authenticated user
   });
 
   try {
     const newTemplate = await template.save();
+    
+    // If successful, update the user's createdTemplates array
+    // This would typically be handled with authentication middleware
+    // but for this example, we'll assume the creator ID is valid
+    
     res.status(201).json(newTemplate);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -67,11 +177,40 @@ router.post("/", async (req, res) => {
 
 // Update a template
 router.patch("/:id", getTemplate, async (req, res) => {
+  // Validate fields if they are being updated
+  if (req.body.title && req.body.title.length > 60) {
+    return res.status(400).json({ message: 'Title must be 60 characters or less' });
+  }
+  
+  if (req.body.description && (req.body.description.length < 100 || req.body.description.length > 500)) {
+    return res.status(400).json({ message: 'Description must be between 100 and 500 characters' });
+  }
+  
+  if (req.body.tags && req.body.tags.length > 5) {
+    return res.status(400).json({ message: 'Maximum of 5 tags allowed' });
+  }
+  
+  // Update basic fields
   if (req.body.title) res.template.title = req.body.title;
   if (req.body.description) res.template.description = req.body.description;
-  if (req.body.imageUrl) res.template.imageUrl = req.body.imageUrl;
+  if (req.body.imageUrls) res.template.imageUrls = req.body.imageUrls;
+  if (req.body.videoUrl) res.template.videoUrl = req.body.videoUrl;
   if (req.body.tags) res.template.tags = req.body.tags;
   if (req.body.category) res.template.category = req.body.category;
+  if (req.body.subCategory) res.template.subCategory = req.body.subCategory;
+  if (req.body.frameworkTools) res.template.frameworkTools = req.body.frameworkTools;
+  if (req.body.githubLink) res.template.githubLink = req.body.githubLink;
+  if (req.body.isPrivateRepo !== undefined) res.template.isPrivateRepo = req.body.isPrivateRepo;
+  
+  // Update design specifications
+  if (req.body.colorScheme) res.template.designSpecs.colorScheme = req.body.colorScheme;
+  if (req.body.responsive !== undefined) res.template.designSpecs.responsive = req.body.responsive;
+  if (req.body.accessibilityLevel) res.template.designSpecs.accessibilityLevel = req.body.accessibilityLevel;
+  if (req.body.languageSupport) res.template.designSpecs.languageSupport = req.body.languageSupport;
+  
+  // Update pricing information
+  if (req.body.pricingTier) res.template.pricingTier = req.body.pricingTier;
+  if (req.body.price !== undefined) res.template.price = req.body.price;
 
   try {
     const updatedTemplate = await res.template.save();
