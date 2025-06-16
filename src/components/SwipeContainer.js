@@ -127,15 +127,18 @@ const SwipeContainer = () => {
   }, []);
 
   const handleSwipe = async (direction, templateId) => {
-    // Only record interactions if user is authenticated
     if (isAuthenticated && currentUser) {
       console.log('Current user:', currentUser);
       console.log('Template ID:', templateId);
       try {
+        // Use currentUser._id if available, otherwise fall back to currentUser.id
+        const userId = currentUser._id || currentUser.id;
+        console.log('Using user ID for swipe:', userId);
+        
         if (direction === "right") {
-          await interactionApi.likeTemplate(currentUser.id, templateId);
+          await interactionApi.likeTemplate(userId, templateId);
         } else if (direction === "left") {
-          await interactionApi.dislikeTemplate(currentUser.id, templateId);
+          await interactionApi.dislikeTemplate(userId, templateId);
         }
         // Move to the next card
         setCurrentIndex((prevIndex) => prevIndex + 1);
