@@ -152,12 +152,22 @@ const SwipeContainer = () => {
 
   const handleFavorite = async (templateId) => {
     if (isAuthenticated && currentUser) {
+      console.log('Current user for favorite:', currentUser);
+      console.log('Template ID for favorite:', templateId);
       try {
-        await interactionApi.favoriteTemplate(currentUser._id, templateId);
-        // Also add to user's favorites collection
-        await userApi.addToFavorites(currentUser._id, templateId);
+        // Check if currentUser._id exists and use it instead of currentUser.id
+        const userId = currentUser._id || currentUser.id;
+        console.log('Using user ID:', userId);
+        
+        // Create the interaction (API now handles the case if it already exists)
+        await interactionApi.favoriteTemplate(userId, templateId);
+        
+        // Add to user's favorites collection
+        await userApi.addToFavorites(userId, templateId);
+        console.log('Successfully added to favorites');
       } catch (err) {
         console.error("Error adding to favorites:", err);
+        console.error("Error details:", err.response?.data);
         alert("Failed to add to favorites. Please try again.");
       }
     } else {

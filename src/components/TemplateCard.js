@@ -95,8 +95,8 @@ const Description = styled.p`
   font-size: 14px;
   line-height: 1.5;
   margin-bottom: 16px;
-  max-height: ${(props) => (props.showDetails ? 'none' : '48px')};
-  overflow: ${(props) => (props.showDetails ? 'visible' : 'hidden')};
+  max-height: ${(props) => (props.$showDetails ? 'none' : '48px')};
+  overflow: ${(props) => (props.$showDetails ? 'visible' : 'hidden')};
   text-overflow: ellipsis;
 `;
 
@@ -532,7 +532,7 @@ const TemplateCard = ({
 
       <CardContent>
         <Title>{template.title}</Title>
-        <Description className="description-text" showDetails={showDetails}>
+        <Description className="description-text" $showDetails={showDetails}>
           {showDetails ? template.description : getLimitedDescription(template.description)}
         </Description>
         

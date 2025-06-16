@@ -96,25 +96,77 @@ export const interactionApi = {
   delete: (id) => api.delete(`/interactions/${id}`),
 
   // Helper methods for common interactions
-  likeTemplate: (userId, templateId) =>
-    api.post("/interactions", { userId, templateId, interactionType: "like" }),
+  likeTemplate: (userId, templateId) => {
+    return api.post("/interactions", { userId, templateId, interactionType: "like" })
+    .then(response => {
+      return response;
+    })
+    .catch(err => {
+      // If the interaction already exists, we can consider this a success
+      if (err.response?.data?.message === "Interaction already exists") {
+        console.log('Like interaction already exists, treating as success');
+        return { data: { message: "Interaction already exists" } };
+      }
+      // Otherwise, rethrow the error
+      throw err;
+    });
+  },
 
-  dislikeTemplate: (userId, templateId) =>
-    api.post("/interactions", {
+  dislikeTemplate: (userId, templateId) => {
+    return api.post("/interactions", {
       userId,
       templateId,
       interactionType: "dislike",
-    }),
+    })
+    .then(response => {
+      return response;
+    })
+    .catch(err => {
+      // If the interaction already exists, we can consider this a success
+      if (err.response?.data?.message === "Interaction already exists") {
+        console.log('Dislike interaction already exists, treating as success');
+        return { data: { message: "Interaction already exists" } };
+      }
+      // Otherwise, rethrow the error
+      throw err;
+    });
+  },
 
-  favoriteTemplate: (userId, templateId) =>
-    api.post("/interactions", {
+  favoriteTemplate: (userId, templateId) => {
+    return api.post("/interactions", {
       userId,
       templateId,
       interactionType: "favorite",
-    }),
+    })
+    .then(response => {
+      return response;
+    })
+    .catch(err => {
+      // If the interaction already exists, we can consider this a success
+      if (err.response?.data?.message === "Interaction already exists") {
+        console.log('Interaction already exists, treating as success');
+        return { data: { message: "Interaction already exists" } };
+      }
+      // Otherwise, rethrow the error
+      throw err;
+    });
+  },
 
-  viewTemplate: (userId, templateId) =>
-    api.post("/interactions", { userId, templateId, interactionType: "view" }),
+  viewTemplate: (userId, templateId) => {
+    return api.post("/interactions", { userId, templateId, interactionType: "view" })
+    .then(response => {
+      return response;
+    })
+    .catch(err => {
+      // If the interaction already exists, we can consider this a success
+      if (err.response?.data?.message === "Interaction already exists") {
+        console.log('View interaction already exists, treating as success');
+        return { data: { message: "Interaction already exists" } };
+      }
+      // Otherwise, rethrow the error
+      throw err;
+    });
+  },
 };
 
 export default {
