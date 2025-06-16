@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 import { templateApi } from "../services/api";
@@ -24,15 +24,45 @@ import {
   OutlinedInput,
   Checkbox,
   ListItemText,
+  Tooltip,
+  Stepper,
+  Step,
+  StepLabel,
+  Card,
+  CardContent,
+  CardMedia,
+  Divider,
+  LinearProgress,
+  Fade,
+  Zoom,
 } from "@mui/material";
-import { Add, Close } from "@mui/icons-material";
+import {
+  Add,
+  Close,
+  HelpOutline,
+  CloudUpload,
+  CheckCircle,
+  NavigateNext,
+  NavigateBefore,
+  Save,
+  Visibility,
+  Link as LinkIcon,
+  Star,
+  AttachMoney,
+  Devices,
+  Palette,
+  Language,
+  AccessibilityNew,
+  GitHub,
+  Celebration,
+} from "@mui/icons-material";
 
 const PageContainer = styled.div`
   padding: 24px;
   margin-left: 240px;
   margin-top: 64px;
-  max-width: 1200px;
   width: 100%;
+  max-width: 1200px;
   
   @media (max-width: 768px) {
     margin-left: 0;
@@ -44,25 +74,129 @@ const PageContainer = styled.div`
 const FormContainer = styled(Paper)`
   padding: 32px;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.12);
+  }
 `;
 
-const FormTitle = styled(Typography)`
-  margin-bottom: 24px;
-  font-weight: 600;
-  color: var(--text-primary);
-`;
-
-const FormSection = styled.div`
+const HeaderBanner = styled.div`
+  background: linear-gradient(135deg, var(--primary-main) 0%, #ff8a9d 100%);
+  border-radius: 12px;
+  padding: 32px;
   margin-bottom: 32px;
+  color: white;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(255, 88, 100, 0.2);
+  
+  &:before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 60%);
+    opacity: 0.6;
+    animation: pulse 15s infinite;
+  }
+  
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+`;
+
+const HeaderTitle = styled(Typography)`
+  font-weight: 700;
+  margin-bottom: 16px;
+  font-size: 2.5rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  
+  @media (max-width: 768px) {
+    font-size: 1.8rem;
+  }
+`;
+
+const HeaderSubtitle = styled(Typography)`
+  font-weight: 400;
+  font-size: 1.2rem;
+  margin-bottom: 24px;
+  opacity: 0.9;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+  
+  @media (max-width: 768px) {
+    font-size: 1rem;
+  }
+`;
+
+const StatsContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  margin-top: 24px;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 16px;
+  }
+`;
+
+const StatItem = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`;
+
+const StatValue = styled(Typography)`
+  font-weight: 700;
+  font-size: 2rem;
+  margin-bottom: 4px;
+`;
+
+const StatLabel = styled(Typography)`
+  font-size: 0.9rem;
+  opacity: 0.8;
+`;
+
+const FormSection = styled(Card)`
+  margin-bottom: 32px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  overflow: visible;
+  
+  &:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+  }
 `;
 
 const SectionTitle = styled(Typography)`
-  font-weight: 500;
+  font-weight: 600;
   margin-bottom: 16px;
   color: var(--text-primary);
-  border-bottom: 1px solid var(--divider);
-  padding-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const SectionIcon = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--primary-light);
+  color: var(--primary-main);
 `;
 
 const TagsContainer = styled.div`
@@ -75,30 +209,59 @@ const TagsContainer = styled.div`
 const TagChip = styled(Chip)`
   background-color: var(--background-paper);
   border: 1px solid var(--divider);
+  transition: all 0.2s ease;
   
   &:hover {
     background-color: rgba(0, 0, 0, 0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   }
 `;
 
-const SubmitButton = styled(Button)`
-  margin-top: 24px;
+const ActionButton = styled(Button)`
   padding: 12px 24px;
-  background-color: var(--primary-main);
-  color: white;
   font-weight: 600;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(255, 88, 100, 0.3);
+  text-transform: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   
   &:hover {
-    background-color: var(--primary-dark);
-    box-shadow: 0 4px 12px rgba(255, 88, 100, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
   
   &.Mui-disabled {
     background-color: rgba(0, 0, 0, 0.12);
     color: rgba(0, 0, 0, 0.26);
   }
+`;
+
+const PrimaryButton = styled(ActionButton)`
+  background-color: var(--primary-main);
+  color: white;
+  box-shadow: 0 2px 8px rgba(255, 88, 100, 0.3);
+  
+  &:hover {
+    background-color: var(--primary-dark);
+    box-shadow: 0 4px 12px rgba(255, 88, 100, 0.4);
+  }
+`;
+
+const SecondaryButton = styled(ActionButton)`
+  background-color: white;
+  color: var(--text-primary);
+  border: 1px solid var(--divider);
+  
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+  }
+`;
+
+const SubmitButton = styled(PrimaryButton)`
+  margin-top: 24px;
+  font-size: 1.1rem;
+  padding: 16px 32px;
 `;
 
 const ImagePreviewContainer = styled.div`
@@ -115,6 +278,12 @@ const ImagePreview = styled.div`
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid var(--divider);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  }
 `;
 
 const PreviewImage = styled.img`
@@ -130,10 +299,175 @@ const RemoveImageButton = styled(IconButton)`
   background-color: rgba(0, 0, 0, 0.5);
   color: white;
   padding: 4px;
+  transition: all 0.2s ease;
   
   &:hover {
     background-color: rgba(0, 0, 0, 0.7);
+    transform: scale(1.1);
   }
+`;
+
+const UploadZone = styled.div`
+  border: 2px dashed var(--divider);
+  border-radius: 8px;
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: rgba(0, 0, 0, 0.01);
+  
+  &:hover {
+    border-color: var(--primary-main);
+    background-color: rgba(255, 88, 100, 0.02);
+  }
+`;
+
+const UploadIcon = styled(CloudUpload)`
+  font-size: 48px;
+  color: var(--primary-main);
+  margin-bottom: 16px;
+  opacity: 0.8;
+`;
+
+const StepperContainer = styled.div`
+  margin-bottom: 32px;
+`;
+
+const StepContent = styled.div`
+  padding: 24px;
+`;
+
+const NavigationButtons = styled.div`
+  display: flex;
+  justify-content: space-between;
+  margin-top: 32px;
+`;
+
+const QualityScoreContainer = styled.div`
+  margin-top: 24px;
+  padding: 16px;
+  border-radius: 8px;
+  background-color: rgba(0, 0, 0, 0.02);
+`;
+
+const QualityScoreLabel = styled(Typography)`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-weight: 500;
+`;
+
+const QualityScoreValue = styled(Typography)`
+  font-weight: 700;
+  color: ${props => {
+    if (props.score >= 80) return 'var(--status-success)';
+    if (props.score >= 50) return 'orange';
+    return 'var(--status-error)';
+  }};
+`;
+
+const BenefitsCard = styled(Card)`
+  background-color: #f8f9fa;
+  margin-top: 32px;
+  border-radius: 12px;
+  overflow: hidden;
+`;
+
+const BenefitsHeader = styled(CardContent)`
+  background-color: var(--primary-light);
+  padding: 16px;
+`;
+
+const BenefitsList = styled.ul`
+  padding: 16px 32px;
+  margin: 0;
+`;
+
+const BenefitItem = styled.li`
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const BenefitIcon = styled(CheckCircle)`
+  color: var(--primary-main);
+  font-size: 20px;
+`;
+
+const BenefitsContainer = styled.div`
+  background-color: rgba(0, 0, 0, 0.02);
+  border-radius: 12px;
+  padding: 24px;
+  margin-top: 16px;
+  border: 1px solid var(--divider);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transform: translateY(-2px);
+  }
+`;
+
+const ExampleCard = styled(Card)`
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  height: 100%;
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
+`;
+
+const ExampleImage = styled.img`
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+`;
+
+const ExampleContent = styled(CardContent)`
+  padding: 16px;
+`;
+
+const ExampleTitle = styled(Typography)`
+  font-weight: 600;
+  margin-bottom: 8px;
+`;
+
+const ExampleStats = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+`;
+
+const ExampleStat = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const TooltipContent = styled.div`
+  padding: 8px;
+  max-width: 300px;
+`;
+
+const TooltipTitle = styled(Typography)`
+  font-weight: 600;
+  margin-bottom: 8px;
+`;
+
+const TooltipText = styled(Typography)`
+  font-size: 0.9rem;
 `;
 
 const ITEM_HEIGHT = 48;
@@ -147,9 +481,42 @@ const MenuProps = {
   },
 };
 
+// Example templates for inspiration
+const exampleTemplates = [
+  {
+    id: 1,
+    title: "Modern Dashboard UI Kit",
+    category: "Dashboard UI",
+    image: "https://cdn.dribbble.com/users/1615584/screenshots/15467705/media/9f9d5d54c1c3329c7f9f0f3f9f9c8e8a.jpg",
+    likes: 245,
+    downloads: 1200,
+  },
+  {
+    id: 2,
+    title: "E-commerce Mobile App Template",
+    category: "Mobile App UI",
+    image: "https://cdn.dribbble.com/users/1126935/screenshots/15463811/media/8db76c7ce48c4c2b3f002a876b8c0b0f.png",
+    likes: 189,
+    downloads: 850,
+  },
+  {
+    id: 3,
+    title: "Creative Portfolio Website",
+    category: "Web UI",
+    image: "https://cdn.dribbble.com/users/1615584/screenshots/15467705/media/9f9d5d54c1c3329c7f9f0f3f9f9c8e8a.jpg",
+    likes: 312,
+    downloads: 1500,
+  },
+];
+
 const UploadPage = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { currentUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+  
+  // Step state
+  const [activeStep, setActiveStep] = useState(0);
+  const steps = ['Basic Info', 'Visual Preview', 'Details', 'Publish'];
   
   // Form state
   const [title, setTitle] = useState("");
@@ -180,6 +547,14 @@ const UploadPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [formIsDirty, setFormIsDirty] = useState(false);
+  
+  // Autosave
+  const [lastSaved, setLastSaved] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // Quality score
+  const [qualityScore, setQualityScore] = useState(0);
   
   // Category options
   const categoryOptions = [
@@ -241,6 +616,7 @@ const UploadPage = () => {
   // Reset sub-category when category changes
   useEffect(() => {
     setSubCategory("");
+    updateFormDirty();
   }, [category]);
   
   // Check if user is authenticated
@@ -251,17 +627,135 @@ const UploadPage = () => {
     }
   }, [isAuthenticated]);
   
+  // Load draft from localStorage
+  useEffect(() => {
+    if (isAuthenticated) {
+      const savedDraft = localStorage.getItem(`template_draft_${currentUser?._id}`);
+      if (savedDraft) {
+        try {
+          const draft = JSON.parse(savedDraft);
+          setTitle(draft.title || "");
+          setDescription(draft.description || "");
+          setCategory(draft.category || "");
+          setSubCategory(draft.subCategory || "");
+          setFrameworkTools(draft.frameworkTools || []);
+          setTags(draft.tags || []);
+          setGithubLink(draft.githubLink || "");
+          setIsPrivateRepo(draft.isPrivateRepo || false);
+          setImageUrls(draft.imageUrls || []);
+          setVideoUrl(draft.videoUrl || "");
+          setColorScheme(draft.colorScheme || "Light");
+          setResponsive(draft.responsive !== undefined ? draft.responsive : true);
+          setAccessibilityLevel(draft.accessibilityLevel || "Not Tested");
+          setLanguageSupport(draft.languageSupport || "English");
+          setPricingTier(draft.pricingTier || "Free");
+          setPrice(draft.price || 0);
+          
+          setLastSaved(new Date(draft.savedAt));
+        } catch (error) {
+          console.error("Error loading draft:", error);
+        }
+      }
+    }
+  }, [isAuthenticated, currentUser]);
+  
+  // Autosave draft
+  useEffect(() => {
+    if (isAuthenticated && formIsDirty && !isSubmitting) {
+      const autosaveTimer = setTimeout(() => {
+        saveDraft();
+      }, 5000); // Autosave after 5 seconds of inactivity
+      
+      return () => clearTimeout(autosaveTimer);
+    }
+  }, [title, description, category, subCategory, frameworkTools, tags, githubLink, isPrivateRepo, 
+      imageUrls, videoUrl, colorScheme, responsive, accessibilityLevel, languageSupport, pricingTier, 
+      price, formIsDirty, isAuthenticated, isSubmitting]);
+  
+  // Calculate quality score
+  useEffect(() => {
+    let score = 0;
+    
+    // Basic info completeness (40%)
+    if (title) score += 5;
+    if (title.length >= 20) score += 5;
+    if (description) score += 5;
+    if (description.length >= 200) score += 10;
+    if (category) score += 5;
+    if (subCategory) score += 5;
+    if (frameworkTools.length > 0) score += 5;
+    
+    // Visual assets (30%)
+    if (imageUrls.length > 0) score += 10;
+    if (imageUrls.length >= 3) score += 10;
+    if (videoUrl) score += 10;
+    
+    // Additional details (20%)
+    if (tags.length > 0) score += 5;
+    if (tags.length >= 3) score += 5;
+    if (githubLink) score += 5;
+    if (responsive) score += 5;
+    
+    // Design specs (10%)
+    if (accessibilityLevel !== "Not Tested") score += 5;
+    if (languageSupport !== "English") score += 5;
+    
+    setQualityScore(score);
+  }, [title, description, category, subCategory, frameworkTools, tags, githubLink, 
+      imageUrls, videoUrl, responsive, accessibilityLevel, languageSupport]);
+  
+  const updateFormDirty = () => {
+    setFormIsDirty(true);
+  };
+  
+  // Save draft to localStorage
+  const saveDraft = () => {
+    if (!isAuthenticated || !currentUser) return;
+    
+    setIsSaving(true);
+    
+    const draft = {
+      title,
+      description,
+      category,
+      subCategory,
+      frameworkTools,
+      tags,
+      githubLink,
+      isPrivateRepo,
+      imageUrls,
+      videoUrl,
+      colorScheme,
+      responsive,
+      accessibilityLevel,
+      languageSupport,
+      pricingTier,
+      price,
+      savedAt: new Date().toISOString(),
+    };
+    
+    localStorage.setItem(`template_draft_${currentUser._id}`, JSON.stringify(draft));
+    setLastSaved(new Date());
+    setFormIsDirty(false);
+    
+    setTimeout(() => {
+      setIsSaving(false);
+    }, 1000);
+  };
+  
   // Add a tag
   const handleAddTag = () => {
     if (currentTag && !tags.includes(currentTag) && tags.length < 5) {
       setTags([...tags, currentTag]);
       setCurrentTag("");
+      updateFormDirty();
     }
   };
   
   // Remove a tag
   const handleRemoveTag = (tagToRemove) => {
     setTags(tags.filter(tag => tag !== tagToRemove));
+    updateFormDirty();
   };
   
   // Add an image URL
@@ -269,12 +763,23 @@ const UploadPage = () => {
     if (currentImageUrl && !imageUrls.includes(currentImageUrl)) {
       setImageUrls([...imageUrls, currentImageUrl]);
       setCurrentImageUrl("");
+      updateFormDirty();
     }
   };
   
   // Remove an image URL
   const handleRemoveImageUrl = (urlToRemove) => {
     setImageUrls(imageUrls.filter(url => url !== urlToRemove));
+    updateFormDirty();
+  };
+  
+  // Handle file upload (simulated)
+  const handleFileUpload = () => {
+    // In a real implementation, this would upload the file to a server
+    // and return a URL. For now, we'll simulate with a placeholder URL.
+    const mockImageUrl = `https://source.unsplash.com/random/800x600?sig=${Math.random()}`;
+    setImageUrls([...imageUrls, mockImageUrl]);
+    updateFormDirty();
   };
   
   // Validate form
@@ -309,14 +814,26 @@ const UploadPage = () => {
   
   // Handle form submission
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     
     if (!isAuthenticated) {
       document.dispatchEvent(new CustomEvent('openAuthModal'));
       return;
     }
     
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      // Find the step with errors and navigate to it
+      if (errors.title || errors.category || errors.subCategory || errors.frameworkTools || errors.description) {
+        setActiveStep(0);
+      } else if (errors.visualPreview) {
+        setActiveStep(1);
+      } else if (errors.tags) {
+        setActiveStep(2);
+      } else if (errors.price) {
+        setActiveStep(3);
+      }
+      return;
+    }
     
     setIsSubmitting(true);
     setSubmitError("");
@@ -341,12 +858,17 @@ const UploadPage = () => {
         },
         pricingTier,
         price: pricingTier === "Premium" ? price : 0,
-        creator: user._id, // Assuming user object has _id
+        creator: currentUser._id,
       };
       
       await templateApi.create(templateData);
       
       setSubmitSuccess(true);
+      
+      // Clear draft after successful submission
+      if (currentUser) {
+        localStorage.removeItem(`template_draft_${currentUser._id}`);
+      }
       
       // Reset form after successful submission
       setTimeout(() => {
@@ -361,387 +883,912 @@ const UploadPage = () => {
     }
   };
   
-  return (
-    <PageContainer>
-      <FormContainer elevation={0}>
-        <FormTitle variant="h4">Upload New Template</FormTitle>
-        
-        {submitSuccess && (
-          <Alert severity="success" sx={{ mb: 3 }}>
-            Template submitted successfully! Redirecting...
-          </Alert>
-        )}
-        
-        {submitError && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {submitError}
-          </Alert>
-        )}
-        
-        <form onSubmit={handleSubmit}>
-          <FormSection>
-            <SectionTitle variant="h6">Basic Information</SectionTitle>
-            
-            <Grid container spacing={3}>
-              <Grid item xs={12}>
-                <TextField
-                  label="Template Title"
-                  variant="outlined"
-                  fullWidth
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  error={!!errors.title}
-                  helperText={errors.title || `${title.length}/60 characters`}
-                  disabled={isSubmitting}
-                  required
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth error={!!errors.category} required>
-                  <InputLabel>Category</InputLabel>
-                  <Select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    label="Category"
-                    disabled={isSubmitting}
-                  >
-                    {categoryOptions.map((option) => (
-                      <MenuItem key={option} value={option}>
-                        {option}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  {errors.category && <FormHelperText>{errors.category}</FormHelperText>}
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth error={!!errors.subCategory} disabled={!category || getSubCategoryOptions().length === 0} required={getSubCategoryOptions().length > 0}>
-                  <InputLabel>Sub-Category</InputLabel>
-                  <Select
-                    value={subCategory}
-                    onChange={(e) => setSubCategory(e.target.value)}
-                    label="Sub-Category"
-                    disabled={isSubmitting || !category || getSubCategoryOptions().length === 0}
-                  >
-                    {getSubCategoryOptions().map((option) => (
-                      <MenuItem key={option} value={option}>
-                        {option}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  {errors.subCategory && <FormHelperText>{errors.subCategory}</FormHelperText>}
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12}>
-                <FormControl fullWidth error={!!errors.frameworkTools} required>
-                  <InputLabel>Framework/Tools</InputLabel>
-                  <Select
-                    multiple
-                    value={frameworkTools}
-                    onChange={(e) => setFrameworkTools(e.target.value)}
-                    input={<OutlinedInput label="Framework/Tools" />}
-                    renderValue={(selected) => (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {selected.map((value) => (
-                          <Chip key={value} label={value} />
-                        ))}
-                      </Box>
-                    )}
-                    MenuProps={MenuProps}
-                    disabled={isSubmitting}
-                  >
-                    {frameworkToolsOptions.map((option) => (
-                      <MenuItem key={option} value={option}>
-                        <Checkbox checked={frameworkTools.indexOf(option) > -1} />
-                        <ListItemText primary={option} />
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  {errors.frameworkTools && <FormHelperText>{errors.frameworkTools}</FormHelperText>}
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12}>
-                <TextField
-                  label="Description"
-                  variant="outlined"
-                  fullWidth
-                  multiline
-                  rows={4}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  error={!!errors.description}
-                  helperText={errors.description || `${description.length}/500 characters (minimum 100)`}
-                  disabled={isSubmitting}
-                  required
-                />
-              </Grid>
-            </Grid>
-          </FormSection>
-          
-          <FormSection>
-            <SectionTitle variant="h6">Visual Preview</SectionTitle>
-            
-            {errors.visualPreview && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {errors.visualPreview}
-              </Alert>
-            )}
-            
-            <Grid container spacing={3}>
-              <Grid item xs={12}>
-                <Box sx={{ display: 'flex', alignItems: 'flex-end' }}>
-                  <TextField
-                    label="Image URL"
-                    variant="outlined"
-                    fullWidth
-                    value={currentImageUrl}
-                    onChange={(e) => setCurrentImageUrl(e.target.value)}
-                    disabled={isSubmitting}
-                    sx={{ mr: 1 }}
-                  />
-                  <Button
-                    variant="contained"
-                    onClick={handleAddImageUrl}
-                    disabled={!currentImageUrl || isSubmitting}
-                    startIcon={<Add />}
-                  >
-                    Add
-                  </Button>
-                </Box>
-                <FormHelperText>Add multiple screenshots showing different views/states</FormHelperText>
-              </Grid>
-              
-              {imageUrls.length > 0 && (
+  // Handle next step
+  const handleNext = () => {
+    // Validate current step
+    let canProceed = true;
+    
+    if (activeStep === 0) {
+      // Validate basic info
+      if (!title) {
+        setErrors(prev => ({ ...prev, title: "Title is required" }));
+        canProceed = false;
+      }
+      if (!category) {
+        setErrors(prev => ({ ...prev, category: "Category is required" }));
+        canProceed = false;
+      }
+      if (!description) {
+        setErrors(prev => ({ ...prev, description: "Description is required" }));
+        canProceed = false;
+      } else if (description.length < 100) {
+        setErrors(prev => ({ ...prev, description: "Description must be at least 100 characters" }));
+        canProceed = false;
+      }
+      if (frameworkTools.length === 0) {
+        setErrors(prev => ({ ...prev, frameworkTools: "At least one framework/tool is required" }));
+        canProceed = false;
+      }
+    } else if (activeStep === 1) {
+      // Validate visual preview
+      if (imageUrls.length === 0 && !videoUrl) {
+        setErrors(prev => ({ ...prev, visualPreview: "At least one image or video URL is required" }));
+        canProceed = false;
+      }
+    }
+    
+    if (canProceed) {
+      setActiveStep((prevActiveStep) => prevActiveStep + 1);
+      // Auto-save when moving to next step
+      saveDraft();
+    }
+  };
+  
+  // Handle back step
+  const handleBack = () => {
+    setActiveStep((prevActiveStep) => prevActiveStep - 1);
+  };
+  
+  // Generate description with AI (simulated)
+  const generateDescription = () => {
+    // In a real implementation, this would call an AI service
+    // For now, we'll simulate with a placeholder description
+    const placeholderDescriptions = [
+      `A modern and clean ${category} template designed for ${subCategory || 'various'} applications. This template features a responsive design, intuitive user interface, and customizable components that can be easily adapted to your specific needs.`,
+      `Elevate your ${category} project with this professional template. Carefully crafted with attention to detail, this template offers a seamless user experience across all devices and screen sizes.`,
+      `This ${category} template is perfect for ${subCategory || 'various'} projects. It includes all the essential components and features needed to create a stunning user interface that will impress your clients and users.`
+    ];
+    
+    const randomDescription = placeholderDescriptions[Math.floor(Math.random() * placeholderDescriptions.length)];
+    setDescription(randomDescription);
+    updateFormDirty();
+  };
+  
+  // Test GitHub link
+  const testGitHubLink = () => {
+    if (githubLink) {
+      window.open(githubLink, '_blank');
+    }
+  };
+  
+  // Render step content
+  const getStepContent = (step) => {
+    switch (step) {
+      case 0: // Basic Info
+        return (
+          <Fade in={activeStep === 0}>
+            <StepContent>
+              <Grid container spacing={3}>
                 <Grid item xs={12}>
-                  <ImagePreviewContainer>
-                    {imageUrls.map((url, index) => (
-                      <ImagePreview key={index}>
-                        <PreviewImage src={url} alt={`Preview ${index + 1}`} />
-                        <RemoveImageButton
-                          size="small"
-                          onClick={() => handleRemoveImageUrl(url)}
-                          disabled={isSubmitting}
-                        >
-                          <Close fontSize="small" />
-                        </RemoveImageButton>
-                      </ImagePreview>
-                    ))}
-                  </ImagePreviewContainer>
+                  <SectionTitle variant="h6">
+                    <SectionIcon><Palette /></SectionIcon>
+                    Basic Information
+                  </SectionTitle>
                 </Grid>
-              )}
-              
-              <Grid item xs={12}>
-                <TextField
-                  label="Video URL (Optional)"
-                  variant="outlined"
-                  fullWidth
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  disabled={isSubmitting}
-                  helperText="Add a video showcase (maximum 60 seconds)"
-                />
-              </Grid>
-            </Grid>
-          </FormSection>
-          
-          <FormSection>
-            <SectionTitle variant="h6">Tags & Keywords</SectionTitle>
-            
-            <Grid container spacing={3}>
-              <Grid item xs={12}>
-                <Box sx={{ display: 'flex', alignItems: 'flex-end' }}>
+                
+                <Grid item xs={12}>
                   <TextField
-                    label="Tag"
+                    label="Template Title"
                     variant="outlined"
                     fullWidth
-                    value={currentTag}
-                    onChange={(e) => setCurrentTag(e.target.value)}
-                    disabled={isSubmitting || tags.length >= 5}
-                    error={!!errors.tags}
-                    helperText={errors.tags || `${tags.length}/5 tags`}
-                    sx={{ mr: 1 }}
+                    value={title}
+                    onChange={(e) => {
+                      setTitle(e.target.value);
+                      updateFormDirty();
+                    }}
+                    error={!!errors.title}
+                    helperText={errors.title || `${title.length}/60 characters`}
+                    disabled={isSubmitting}
+                    required
+                    InputProps={{
+                      endAdornment: (
+                        <Tooltip title={
+                          <TooltipContent>
+                            <TooltipTitle>Creating an Effective Title</TooltipTitle>
+                            <TooltipText>
+                              A good title is clear, specific, and includes keywords users might search for. 
+                              Aim for 30-50 characters that accurately describe your template.
+                            </TooltipText>
+                          </TooltipContent>
+                        }>
+                          <HelpOutline color="action" style={{ cursor: 'pointer' }} />
+                        </Tooltip>
+                      ),
+                    }}
                   />
-                  <Button
-                    variant="contained"
-                    onClick={handleAddTag}
-                    disabled={!currentTag || tags.length >= 5 || isSubmitting}
-                    startIcon={<Add />}
-                  >
-                    Add
-                  </Button>
-                </Box>
-              </Grid>
-              
-              {tags.length > 0 && (
+                </Grid>
+                
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth error={!!errors.category} required>
+                    <InputLabel>Category</InputLabel>
+                    <Select
+                      value={category}
+                      onChange={(e) => {
+                        setCategory(e.target.value);
+                        updateFormDirty();
+                      }}
+                      label="Category"
+                      disabled={isSubmitting}
+                    >
+                      {categoryOptions.map((option) => (
+                        <MenuItem key={option} value={option}>
+                          {option}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {errors.category && <FormHelperText>{errors.category}</FormHelperText>}
+                  </FormControl>
+                </Grid>
+                
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth error={!!errors.subCategory} disabled={!category || getSubCategoryOptions().length === 0} required={getSubCategoryOptions().length > 0}>
+                    <InputLabel>Sub-Category</InputLabel>
+                    <Select
+                      value={subCategory}
+                      onChange={(e) => {
+                        setSubCategory(e.target.value);
+                        updateFormDirty();
+                      }}
+                      label="Sub-Category"
+                      disabled={isSubmitting || !category || getSubCategoryOptions().length === 0}
+                    >
+                      {getSubCategoryOptions().map((option) => (
+                        <MenuItem key={option} value={option}>
+                          {option}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {errors.subCategory && <FormHelperText>{errors.subCategory}</FormHelperText>}
+                  </FormControl>
+                </Grid>
+                
                 <Grid item xs={12}>
-                  <TagsContainer>
-                    {tags.map((tag, index) => (
-                      <TagChip
-                        key={index}
-                        label={tag}
-                        onDelete={() => handleRemoveTag(tag)}
+                  <FormControl fullWidth error={!!errors.frameworkTools} required>
+                    <InputLabel>Framework/Tools</InputLabel>
+                    <Select
+                      multiple
+                      value={frameworkTools}
+                      onChange={(e) => {
+                        setFrameworkTools(e.target.value);
+                        updateFormDirty();
+                      }}
+                      input={<OutlinedInput label="Framework/Tools" />}
+                      renderValue={(selected) => (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {selected.map((value) => (
+                            <Chip key={value} label={value} />
+                          ))}
+                        </Box>
+                      )}
+                      MenuProps={MenuProps}
+                      disabled={isSubmitting}
+                    >
+                      {frameworkToolsOptions.map((option) => (
+                        <MenuItem key={option} value={option}>
+                          <Checkbox checked={frameworkTools.indexOf(option) > -1} />
+                          <ListItemText primary={option} />
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {errors.frameworkTools && <FormHelperText>{errors.frameworkTools}</FormHelperText>}
+                  </FormControl>
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                    <TextField
+                      label="Description"
+                      variant="outlined"
+                      fullWidth
+                      multiline
+                      rows={4}
+                      value={description}
+                      onChange={(e) => {
+                        setDescription(e.target.value);
+                        updateFormDirty();
+                      }}
+                      error={!!errors.description}
+                      helperText={errors.description || `${description.length}/500 characters (minimum 100)`}
+                      disabled={isSubmitting}
+                      required
+                      InputProps={{
+                        endAdornment: (
+                          <Tooltip title={
+                            <TooltipContent>
+                              <TooltipTitle>Writing an Effective Description</TooltipTitle>
+                              <TooltipText>
+                                A good description explains what the template is for, its key features, and why someone should use it.
+                                Include details about functionality, customization options, and technical requirements.
+                              </TooltipText>
+                            </TooltipContent>
+                          }>
+                            <HelpOutline color="action" style={{ cursor: 'pointer', position: 'absolute', top: '12px', right: '12px' }} />
+                          </Tooltip>
+                        ),
+                      }}
+                    />
+                    <Tooltip title="Generate a description based on your template details">
+                      <Button
+                        variant="outlined"
+                        onClick={generateDescription}
+                        disabled={!category}
+                        sx={{ minWidth: '180px', height: '56px' }}
+                      >
+                        Generate Description
+                      </Button>
+                    </Tooltip>
+                  </Box>
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" color="textSecondary">
+                      {lastSaved ? `Last saved: ${lastSaved.toLocaleTimeString()}` : ''}
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      startIcon={<Save />}
+                      onClick={saveDraft}
+                      disabled={isSubmitting || isSaving || !formIsDirty}
+                    >
+                      {isSaving ? 'Saving...' : 'Save Draft'}
+                    </Button>
+                  </Box>
+                </Grid>
+              </Grid>
+            </StepContent>
+          </Fade>
+        );
+        
+      case 1: // Visual Preview
+        return (
+          <Fade in={activeStep === 1}>
+            <StepContent>
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <SectionTitle variant="h6">
+                    <SectionIcon><Visibility /></SectionIcon>
+                    Visual Preview
+                  </SectionTitle>
+                </Grid>
+                
+                {errors.visualPreview && (
+                  <Grid item xs={12}>
+                    <Alert severity="error">
+                      {errors.visualPreview}
+                    </Alert>
+                  </Grid>
+                )}
+                
+                <Grid item xs={12}>
+                  <UploadZone onClick={() => handleFileUpload()}>
+                    <UploadIcon />
+                    <Typography variant="h6" gutterBottom>Drag & Drop Images Here</Typography>
+                    <Typography variant="body2" color="textSecondary" gutterBottom>
+                      Or click to browse your files (PNG, JPG, GIF up to 5MB)
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      startIcon={<CloudUpload />}
+                      sx={{ mt: 2 }}
+                      disabled={isSubmitting}
+                    >
+                      Upload Images
+                    </Button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      style={{ display: 'none' }}
+                      accept="image/*"
+                      multiple
+                      onChange={handleFileUpload}
+                    />
+                  </UploadZone>
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <Divider sx={{ my: 2 }}>
+                    <Chip label="OR" />
+                  </Divider>
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', alignItems: 'flex-end' }}>
+                    <TextField
+                      label="Image URL"
+                      variant="outlined"
+                      fullWidth
+                      value={currentImageUrl}
+                      onChange={(e) => setCurrentImageUrl(e.target.value)}
+                      disabled={isSubmitting}
+                      sx={{ mr: 1 }}
+                    />
+                    <Button
+                      variant="contained"
+                      onClick={handleAddImageUrl}
+                      disabled={!currentImageUrl || isSubmitting}
+                      startIcon={<Add />}
+                    >
+                      Add
+                    </Button>
+                  </Box>
+                  <FormHelperText>Add multiple screenshots showing different views/states</FormHelperText>
+                </Grid>
+                
+                {imageUrls.length > 0 && (
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" gutterBottom>Preview Images:</Typography>
+                    <ImagePreviewContainer>
+                      {imageUrls.map((url, index) => (
+                        <Zoom in={true} key={index} style={{ transitionDelay: `${index * 100}ms` }}>
+                          <ImagePreview>
+                            <PreviewImage src={url} alt={`Preview ${index + 1}`} />
+                            <RemoveImageButton
+                              size="small"
+                              onClick={() => handleRemoveImageUrl(url)}
+                              disabled={isSubmitting}
+                            >
+                              <Close fontSize="small" />
+                            </RemoveImageButton>
+                          </ImagePreview>
+                        </Zoom>
+                      ))}
+                    </ImagePreviewContainer>
+                  </Grid>
+                )}
+                
+                <Grid item xs={12}>
+                  <TextField
+                    label="Video URL (Optional)"
+                    variant="outlined"
+                    fullWidth
+                    value={videoUrl}
+                    onChange={(e) => {
+                      setVideoUrl(e.target.value);
+                      updateFormDirty();
+                    }}
+                    disabled={isSubmitting}
+                    helperText="Add a video showcase (maximum 60 seconds)"
+                    InputProps={{
+                      endAdornment: (
+                        <Tooltip title={
+                          <TooltipContent>
+                            <TooltipTitle>Video Showcase Tips</TooltipTitle>
+                            <TooltipText>
+                              A short video demonstration can significantly increase interest in your template.
+                              Keep it under 60 seconds and focus on key features and interactions.
+                            </TooltipText>
+                          </TooltipContent>
+                        }>
+                          <HelpOutline color="action" style={{ cursor: 'pointer' }} />
+                        </Tooltip>
+                      ),
+                    }}
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <Typography variant="subtitle1" gutterBottom>Template Preview:</Typography>
+                  <Alert severity="info">
+                    This is how your template will appear in search results and the explore page.
+                  </Alert>
+                  <Box sx={{ mt: 2, p: 2, border: '1px solid #eee', borderRadius: '8px' }}>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={4}>
+                        <Box sx={{ 
+                          height: '160px', 
+                          borderRadius: '8px', 
+                          overflow: 'hidden',
+                          bgcolor: imageUrls.length ? 'transparent' : '#f5f5f5',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          {imageUrls.length ? (
+                            <img 
+                              src={imageUrls[0]} 
+                              alt="Template Preview" 
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                            />
+                          ) : (
+                            <Typography variant="body2" color="textSecondary">No preview image</Typography>
+                          )}
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} sm={8}>
+                        <Typography variant="h6" noWrap>
+                          {title || "Your Template Title"}
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary" gutterBottom>
+                          {category} {subCategory ? `• ${subCategory}` : ''}
+                        </Typography>
+                        <Typography variant="body2" noWrap>
+                          {description || "Your template description will appear here..."}
+                        </Typography>
+                        <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
+                          {frameworkTools.slice(0, 3).map((tool, index) => (
+                            <Chip key={index} label={tool} size="small" />
+                          ))}
+                          {frameworkTools.length > 3 && (
+                            <Chip label={`+${frameworkTools.length - 3}`} size="small" />
+                          )}
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </Box>
+                </Grid>
+              </Grid>
+            </StepContent>
+          </Fade>
+        );
+        
+      case 2: // Details
+        return (
+          <Fade in={activeStep === 2}>
+            <StepContent>
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <SectionTitle variant="h6">
+                    <SectionIcon><LinkIcon /></SectionIcon>
+                    Tags & Keywords
+                  </SectionTitle>
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', alignItems: 'flex-end' }}>
+                    <TextField
+                      label="Tag"
+                      variant="outlined"
+                      fullWidth
+                      value={currentTag}
+                      onChange={(e) => setCurrentTag(e.target.value)}
+                      disabled={isSubmitting || tags.length >= 5}
+                      error={!!errors.tags}
+                      helperText={errors.tags || `${tags.length}/5 tags`}
+                      sx={{ mr: 1 }}
+                      InputProps={{
+                        endAdornment: (
+                          <Tooltip title={
+                            <TooltipContent>
+                              <TooltipTitle>Effective Tags</TooltipTitle>
+                              <TooltipText>
+                                Use tags that potential users might search for. Include technologies, design styles, and use cases.
+                              </TooltipText>
+                            </TooltipContent>
+                          }>
+                            <HelpOutline color="action" style={{ cursor: 'pointer' }} />
+                          </Tooltip>
+                        ),
+                      }}
+                    />
+                    <Button
+                      variant="contained"
+                      onClick={handleAddTag}
+                      disabled={!currentTag || tags.length >= 5 || isSubmitting}
+                      startIcon={<Add />}
+                    >
+                      Add
+                    </Button>
+                  </Box>
+                </Grid>
+                
+                {tags.length > 0 && (
+                  <Grid item xs={12}>
+                    <TagsContainer>
+                      {tags.map((tag, index) => (
+                        <TagChip
+                          key={index}
+                          label={tag}
+                          onDelete={() => handleRemoveTag(tag)}
+                          disabled={isSubmitting}
+                        />
+                      ))}
+                    </TagsContainer>
+                  </Grid>
+                )}
+                
+                <Grid item xs={12} sx={{ mt: 2 }}>
+                  <SectionTitle variant="h6">
+                    <SectionIcon><GitHub /></SectionIcon>
+                    Additional Information
+                  </SectionTitle>
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 2 }}>
+                    <TextField
+                      label="GitHub Link (Optional)"
+                      variant="outlined"
+                      fullWidth
+                      value={githubLink}
+                      onChange={(e) => {
+                        setGithubLink(e.target.value);
+                        updateFormDirty();
+                      }}
+                      disabled={isSubmitting}
+                      helperText="Repository with source code/design files"
+                    />
+                    <Button
+                      variant="outlined"
+                      onClick={testGitHubLink}
+                      disabled={!githubLink || isSubmitting}
+                    >
+                      Test Link
+                    </Button>
+                  </Box>
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={isPrivateRepo}
+                        onChange={(e) => {
+                          setIsPrivateRepo(e.target.checked);
+                          updateFormDirty();
+                        }}
+                        disabled={isSubmitting || !githubLink}
+                      />
+                    }
+                    label="Private Repository"
+                  />
+                </Grid>
+                
+                <Grid item xs={12} sx={{ mt: 2 }}>
+                  <SectionTitle variant="h6">
+                    <SectionIcon><Devices /></SectionIcon>
+                    Design Specifications
+                  </SectionTitle>
+                </Grid>
+                
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth disabled={isSubmitting}>
+                    <InputLabel>Color Scheme</InputLabel>
+                    <Select
+                      value={colorScheme}
+                      onChange={(e) => {
+                        setColorScheme(e.target.value);
+                        updateFormDirty();
+                      }}
+                      label="Color Scheme"
+                    >
+                      {['Light', 'Dark', 'Both', 'Custom'].map((option) => (
+                        <MenuItem key={option} value={option}>
+                          {option}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth disabled={isSubmitting}>
+                    <InputLabel>Accessibility Level</InputLabel>
+                    <Select
+                      value={accessibilityLevel}
+                      onChange={(e) => {
+                        setAccessibilityLevel(e.target.value);
+                        updateFormDirty();
+                      }}
+                      label="Accessibility Level"
+                    >
+                      {['WCAG AA', 'WCAG AAA', 'Not Tested'].map((option) => (
+                        <MenuItem key={option} value={option}>
+                          {option}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth disabled={isSubmitting}>
+                    <InputLabel>Language Support</InputLabel>
+                    <Select
+                      value={languageSupport}
+                      onChange={(e) => {
+                        setLanguageSupport(e.target.value);
+                        updateFormDirty();
+                      }}
+                      label="Language Support"
+                    >
+                      {['English', 'Multiple', 'RTL Support'].map((option) => (
+                        <MenuItem key={option} value={option}>
+                          {option}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                
+                <Grid item xs={12} sm={6}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={responsive}
+                        onChange={(e) => {
+                          setResponsive(e.target.checked);
+                          updateFormDirty();
+                        }}
                         disabled={isSubmitting}
                       />
-                    ))}
-                  </TagsContainer>
+                    }
+                    label="Responsive Design"
+                  />
                 </Grid>
-              )}
-            </Grid>
-          </FormSection>
-          
-          <FormSection>
-            <SectionTitle variant="h6">Additional Information</SectionTitle>
-            
-            <Grid container spacing={3}>
-              <Grid item xs={12}>
-                <TextField
-                  label="GitHub Link (Optional)"
-                  variant="outlined"
-                  fullWidth
-                  value={githubLink}
-                  onChange={(e) => setGithubLink(e.target.value)}
-                  disabled={isSubmitting}
-                  helperText="Repository with source code/design files"
-                />
               </Grid>
-              
-              <Grid item xs={12}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={isPrivateRepo}
-                      onChange={(e) => setIsPrivateRepo(e.target.checked)}
-                      disabled={isSubmitting || !githubLink}
+            </StepContent>
+          </Fade>
+        );
+        
+      case 3: // Publish
+        return (
+          <Fade in={activeStep === 3}>
+            <StepContent>
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <SectionTitle variant="h6">
+                    <SectionIcon><AttachMoney /></SectionIcon>
+                    Pricing
+                  </SectionTitle>
+                </Grid>
+                
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth disabled={isSubmitting}>
+                    <InputLabel>Pricing Tier</InputLabel>
+                    <Select
+                      value={pricingTier}
+                      onChange={(e) => {
+                        setPricingTier(e.target.value);
+                        updateFormDirty();
+                      }}
+                      label="Pricing Tier"
+                    >
+                      {['Free', 'Premium', 'Freemium'].map((option) => (
+                        <MenuItem key={option} value={option}>
+                          {option}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    <FormHelperText>
+                      {pricingTier === 'Premium' ? 'Users will pay to download your template' : 
+                       pricingTier === 'Freemium' ? 'Basic version free, premium features paid' : 
+                       'Your template will be available for free'}
+                    </FormHelperText>
+                  </FormControl>
+                </Grid>
+                
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Price"
+                    variant="outlined"
+                    fullWidth
+                    type="number"
+                    value={price}
+                    onChange={(e) => {
+                      setPrice(Number(e.target.value));
+                      updateFormDirty();
+                    }}
+                    disabled={isSubmitting || pricingTier !== "Premium"}
+                    error={!!errors.price}
+                    helperText={errors.price || (pricingTier === "Premium" ? "Set your price in USD" : "")}
+                    InputProps={{ 
+                      inputProps: { min: 0 },
+                      startAdornment: pricingTier === "Premium" ? <AttachMoney fontSize="small" /> : null
+                    }}
+                  />
+                </Grid>
+                
+                {pricingTier === "Premium" && (
+                  <Grid item xs={12}>
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2">Estimated Earnings</Typography>
+                      <Typography variant="body2">
+                        At ${price} per download, you could earn ${price * 10} with just 10 downloads per month.
+                        Premium templates typically see 30-50 downloads monthly.
+                      </Typography>
+                    </Alert>
+                  </Grid>
+                )}
+                
+                <Grid item xs={12}>
+                  <QualityScoreContainer>
+                    <QualityScoreLabel>
+                      Template Quality Score
+                      <QualityScoreValue score={qualityScore}>{qualityScore}%</QualityScoreValue>
+                    </QualityScoreLabel>
+                    <LinearProgress 
+                      variant="determinate" 
+                      value={qualityScore} 
+                      sx={{ 
+                        height: 8, 
+                        borderRadius: 4,
+                        backgroundColor: '#e0e0e0',
+                        '& .MuiLinearProgress-bar': {
+                          backgroundColor: qualityScore >= 80 ? 'var(--status-success)' : 
+                                          qualityScore >= 50 ? 'orange' : 'var(--status-error)'
+                        }
+                      }} 
                     />
-                  }
-                  label="Private Repository"
-                />
+                    <Typography variant="body2" sx={{ mt: 1 }}>
+                      {qualityScore >= 80 ? 'Excellent! Your template is ready for submission.' : 
+                       qualityScore >= 50 ? 'Good start! Consider adding more details to improve your score.' : 
+                       'Your template needs more information to stand out. Complete more fields to improve.'}
+                    </Typography>
+                  </QualityScoreContainer>
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <BenefitsContainer>
+                    <Typography variant="h6" sx={{ mb: 2 }}>
+                      <Celebration color="primary" sx={{ mr: 1, verticalAlign: 'middle' }} />
+                      Benefits of Sharing Your Template
+                    </Typography>
+                    
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={4}>
+                        <BenefitItem>
+                          <Star color="primary" />
+                          <Typography variant="subtitle1">Gain Recognition</Typography>
+                          <Typography variant="body2">Showcase your skills to thousands of developers</Typography>
+                        </BenefitItem>
+                      </Grid>
+                      
+                      <Grid item xs={12} sm={4}>
+                        <BenefitItem>
+                          <AttachMoney color="primary" />
+                          <Typography variant="subtitle1">Earn Revenue</Typography>
+                          <Typography variant="body2">Premium templates can generate passive income</Typography>
+                        </BenefitItem>
+                      </Grid>
+                      
+                      <Grid item xs={12} sm={4}>
+                        <BenefitItem>
+                          <GitHub color="primary" />
+                          <Typography variant="subtitle1">Build Portfolio</Typography>
+                          <Typography variant="body2">Add to your professional development portfolio</Typography>
+                        </BenefitItem>
+                      </Grid>
+                    </Grid>
+                  </BenefitsContainer>
+                </Grid>
+                
+                <Grid item xs={12} sx={{ mt: 3 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                    <SubmitButton
+                      variant="contained"
+                      color="primary"
+                      size="large"
+                      onClick={handleSubmit}
+                      disabled={isSubmitting || !isAuthenticated}
+                      startIcon={<CloudUpload />}
+                    >
+                      {isSubmitting ? 'Publishing...' : 'Publish Your Template'}
+                    </SubmitButton>
+                  </Box>
+                </Grid>
               </Grid>
-            </Grid>
-          </FormSection>
+            </StepContent>
+          </Fade>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <PageContainer>
+      <HeaderBanner>
+        <Typography variant="h4" component="h1">
+          Share Your Amazing Designs With The Community
+        </Typography>
+        <Typography variant="subtitle1">
+          Join 5,000+ designers who've shared templates and reached millions of developers
+        </Typography>
+        
+        <StatsContainer>
+          <StatItem>
+            <Typography variant="h5">5K+</Typography>
+            <Typography variant="body2">Active Creators</Typography>
+          </StatItem>
+          <StatItem>
+            <Typography variant="h5">2M+</Typography>
+            <Typography variant="body2">Monthly Downloads</Typography>
+          </StatItem>
+          <StatItem>
+            <Typography variant="h5">$250K</Typography>
+            <Typography variant="body2">Creator Earnings</Typography>
+          </StatItem>
+        </StatsContainer>
+      </HeaderBanner>
+      
+      <FormContainer>
+        <Box sx={{ mb: 4 }}>
+          <StepperContainer>
+            <Stepper activeStep={activeStep} alternativeLabel>
+              {steps.map((label, index) => (
+                <Step key={label}>
+                  <StepLabel>{label}</StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+          </StepperContainer>
+        </Box>
+        
+        <FormSection>
+          {getStepContent(activeStep)}
           
-          <FormSection>
-            <SectionTitle variant="h6">Design Specifications</SectionTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
+            <SecondaryButton
+              disabled={activeStep === 0 || isSubmitting}
+              onClick={handleBack}
+              startIcon={<NavigateBefore />}
+            >
+              Back
+            </SecondaryButton>
+            
+            {activeStep === steps.length - 1 ? (
+              <SubmitButton
+                variant="contained"
+                color="primary"
+                onClick={handleSubmit}
+                disabled={isSubmitting || !isAuthenticated}
+                startIcon={<CloudUpload />}
+              >
+                {isSubmitting ? 'Publishing...' : 'Publish Your Template'}
+              </SubmitButton>
+            ) : (
+              <PrimaryButton
+                variant="contained"
+                onClick={handleNext}
+                disabled={isSubmitting}
+                endIcon={<NavigateNext />}
+              >
+                Next
+              </PrimaryButton>
+            )}
+          </Box>
+        </FormSection>
+        
+        {activeStep === 0 && (
+          <Box sx={{ mt: 4 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Popular Templates For Inspiration
+            </Typography>
             
             <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth disabled={isSubmitting}>
-                  <InputLabel>Color Scheme</InputLabel>
-                  <Select
-                    value={colorScheme}
-                    onChange={(e) => setColorScheme(e.target.value)}
-                    label="Color Scheme"
-                  >
-                    {['Light', 'Dark', 'Both', 'Custom'].map((option) => (
-                      <MenuItem key={option} value={option}>
-                        {option}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth disabled={isSubmitting}>
-                  <InputLabel>Accessibility Level</InputLabel>
-                  <Select
-                    value={accessibilityLevel}
-                    onChange={(e) => setAccessibilityLevel(e.target.value)}
-                    label="Accessibility Level"
-                  >
-                    {['WCAG AA', 'WCAG AAA', 'Not Tested'].map((option) => (
-                      <MenuItem key={option} value={option}>
-                        {option}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth disabled={isSubmitting}>
-                  <InputLabel>Language Support</InputLabel>
-                  <Select
-                    value={languageSupport}
-                    onChange={(e) => setLanguageSupport(e.target.value)}
-                    label="Language Support"
-                  >
-                    {['English', 'Multiple', 'RTL Support'].map((option) => (
-                      <MenuItem key={option} value={option}>
-                        {option}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12} sm={6}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={responsive}
-                      onChange={(e) => setResponsive(e.target.checked)}
-                      disabled={isSubmitting}
+              {exampleTemplates.map((template, index) => (
+                <Grid item xs={12} sm={6} md={4} key={index}>
+                  <ExampleCard>
+                    <CardMedia
+                      component="img"
+                      height="140"
+                      image={template.image}
+                      alt={template.title}
                     />
-                  }
-                  label="Responsive Design"
-                />
-              </Grid>
+                    <CardContent>
+                      <Typography gutterBottom variant="h6" component="div">
+                        {template.title}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        {template.category} • {template.framework}
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Star sx={{ color: 'gold', mr: 0.5 }} fontSize="small" />
+                        <Typography variant="body2" sx={{ mr: 1 }}>
+                          {template.rating}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          ({template.downloads} downloads)
+                        </Typography>
+                      </Box>
+                    </CardContent>
+                  </ExampleCard>
+                </Grid>
+              ))}
             </Grid>
-          </FormSection>
-          
-          <FormSection>
-            <SectionTitle variant="h6">Pricing</SectionTitle>
-            
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth disabled={isSubmitting}>
-                  <InputLabel>Pricing Tier</InputLabel>
-                  <Select
-                    value={pricingTier}
-                    onChange={(e) => setPricingTier(e.target.value)}
-                    label="Pricing Tier"
-                  >
-                    {['Free', 'Premium', 'Freemium'].map((option) => (
-                      <MenuItem key={option} value={option}>
-                        {option}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Price"
-                  variant="outlined"
-                  fullWidth
-                  type="number"
-                  value={price}
-                  onChange={(e) => setPrice(Number(e.target.value))}
-                  disabled={isSubmitting || pricingTier !== "Premium"}
-                  error={!!errors.price}
-                  helperText={errors.price}
-                  InputProps={{ inputProps: { min: 0 } }}
-                />
-              </Grid>
-            </Grid>
-          </FormSection>
-          
-          <SubmitButton
-            type="submit"
-            variant="contained"
-            fullWidth
-            disabled={isSubmitting || !isAuthenticated}
-            startIcon={isSubmitting && <CircularProgress size={20} color="inherit" />}
-          >
-            {isSubmitting ? "Submitting..." : "Submit Template"}
-          </SubmitButton>
-        </form>
+          </Box>
+        )}
       </FormContainer>
     </PageContainer>
   );

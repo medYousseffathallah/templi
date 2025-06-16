@@ -74,13 +74,13 @@ const SidebarOption = styled.div`
   padding: 12px 24px;
   cursor: pointer;
   width: 100%;
-  color: ${(props) => (props.active ? "var(--primary-main)" : "var(--text-primary)")};
-  background-color: ${(props) => (props.active ? "rgba(255, 88, 100, 0.1)" : "transparent")};
-  border-left: ${(props) => (props.active ? "3px solid var(--primary-main)" : "3px solid transparent")};
+  color: ${(props) => (props.active === "true" ? "var(--primary-main)" : "var(--text-primary)")};
+  background-color: ${(props) => (props.active === "true" ? "rgba(255, 88, 100, 0.1)" : "transparent")};
+  border-left: ${(props) => (props.active === "true" ? "3px solid var(--primary-main)" : "3px solid transparent")};
   transition: all 0.2s ease;
 
   &:hover {
-    background-color: ${(props) => (props.active ? "rgba(255, 88, 100, 0.1)" : "rgba(0, 0, 0, 0.03)")};
+    background-color: ${(props) => (props.active === "true" ? "rgba(255, 88, 100, 0.1)" : "rgba(0, 0, 0, 0.03)")};
     color: var(--primary-main);
   }
 `;
@@ -135,21 +135,21 @@ function Sidebar() {
         <SectionTitle>Discover</SectionTitle>
         
         <Link to="/" style={{ textDecoration: "none" }}>
-          <SidebarOption active={isActive("/")}>
+          <SidebarOption active={isActive("/").toString()}>
             <Home />
             <SidebarText>For You</SidebarText>
           </SidebarOption>
         </Link>
 
         <Link to="/explore" style={{ textDecoration: "none" }}>
-          <SidebarOption active={isActive("/explore")}>
+          <SidebarOption active={isActive("/explore").toString()}>
             <Explore />
             <SidebarText>Explore</SidebarText>
           </SidebarOption>
         </Link>
         
         <Link to="/trending" style={{ textDecoration: "none" }}>
-          <SidebarOption active={isActive("/trending")}>
+          <SidebarOption active={isActive("/trending").toString()}>
             <Lightbulb />
             <SidebarText>Trending</SidebarText>
           </SidebarOption>
@@ -161,14 +161,14 @@ function Sidebar() {
           <SectionTitle>Library</SectionTitle>
           
           <Link to="/favorites" style={{ textDecoration: "none" }}>
-            <SidebarOption active={isActive("/favorites")}>
+            <SidebarOption active={isActive("/favorites").toString()}>
               <Favorite />
               <SidebarText>Favorites</SidebarText>
             </SidebarOption>
           </Link>
           
           <Link to="/saved" style={{ textDecoration: "none" }}>
-            <SidebarOption active={isActive("/saved")}>
+            <SidebarOption active={isActive("/saved").toString()}>
               <Bookmark />
               <SidebarText>Saved</SidebarText>
             </SidebarOption>
@@ -180,7 +180,7 @@ function Sidebar() {
         <SectionTitle>Create</SectionTitle>
         
         <Link to="/upload" style={{ textDecoration: "none" }}>
-          <SidebarOption active={isActive("/upload")}>
+          <SidebarOption active={isActive("/upload").toString()}>
             <Add />
             <SidebarText>Upload</SidebarText>
           </SidebarOption>
@@ -189,7 +189,7 @@ function Sidebar() {
 
       {isAuthenticated ? (
         <Link to="/profile" style={{ textDecoration: "none" }}>
-          <SidebarOption active={isActive("/profile")}>
+          <SidebarOption active={isActive("/profile").toString()}>
             <Person />
             <SidebarText>Profile</SidebarText>
           </SidebarOption>
@@ -199,7 +199,7 @@ function Sidebar() {
       )}
       
       <Link to="/settings" style={{ textDecoration: "none", marginTop: "auto" }}>
-        <SidebarOption active={isActive("/settings")}>
+        <SidebarOption active={isActive("/settings").toString()}>
           <Settings />
           <SidebarText>Settings</SidebarText>
         </SidebarOption>

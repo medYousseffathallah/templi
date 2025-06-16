@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import styled from "styled-components";
 import { Close, Star, Favorite, Info } from "@mui/icons-material";
 
@@ -13,7 +13,7 @@ const Card = styled.div`
   background-position: center;
   box-shadow: var(--shadows-card);
   overflow: hidden;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, filter 0.3s ease;
   
   &:hover {
     transform: translateY(-5px);
@@ -30,6 +30,48 @@ const CardOverlay = styled.div`
     rgba(0, 0, 0, 0.1) 0%, 
     rgba(0, 0, 0, 0.3) 70%, 
     rgba(0, 0, 0, 0.7) 100%);
+`;
+
+const DirectionalOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  z-index: 5;
+  border-radius: var(--borderRadius-large);
+`;
+
+const LikeOverlay = styled(DirectionalOverlay)`
+  background-color: rgba(76, 175, 80, 0.2);
+  border: 4px solid rgba(76, 175, 80, 0.8);
+  &::after {
+    content: 'LIKE';
+    color: #4CAF50;
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  }
+`;
+
+const DislikeOverlay = styled(DirectionalOverlay)`
+  background-color: rgba(244, 67, 54, 0.2);
+  border: 4px solid rgba(244, 67, 54, 0.8);
+  &::after {
+    content: 'NOPE';
+    color: #F44336;
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  }
 `;
 
 const CardContent = styled.div`
@@ -49,15 +91,35 @@ const Title = styled.h2`
 `;
 
 const Description = styled.p`
-  margin: 0 0 16px 0;
-  font-size: 16px;
-  opacity: 0.9;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  color: white;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+  max-height: ${(props) => (props.showDetails ? 'none' : '48px')};
+  overflow: ${(props) => (props.showDetails ? 'visible' : 'hidden')};
   text-overflow: ellipsis;
+`;
+
+const ReadMoreButton = styled.button`
+  background: none;
+  border: none;
+  color: var(--primary-main);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0;
+  margin: -8px 0 16px 0;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+  
+  &:hover {
+    color: var(--primary-dark);
+  }
+  
+  &:focus {
+    outline: none;
+    color: var(--primary-dark);
+  }
 `;
 
 const TagsContainer = styled.div`
@@ -150,40 +212,6 @@ const InfoButton = styled.button`
   }
 `;
 
-const SwipeOverlay = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 42px;
-  font-weight: 700;
-  text-transform: uppercase;
-  opacity: 0;
-  transition: opacity 0.3s;
-  pointer-events: none;
-  z-index: 10;
-  letter-spacing: 2px;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-
-  &.like {
-    background-color: rgba(255, 88, 100, 0.2);
-    color: var(--primary-main);
-    border: 4px solid var(--primary-main);
-    border-radius: var(--borderRadius-large);
-  }
-
-  &.dislike {
-    background-color: rgba(231, 76, 60, 0.2);
-    color: var(--status-error);
-    border: 4px solid var(--status-error);
-    border-radius: var(--borderRadius-large);
-  }
-`;
-
 const TemplateCard = ({
   template,
   isActive,
@@ -196,30 +224,127 @@ const TemplateCard = ({
   const [swiping, setSwiping] = useState(false);
   const [swipeDirection, setSwipeDirection] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
-
-  // Minimum distance for a swipe to be registered
+  const [isDragging, setIsDragging] = useState(false);
+  const [swipePercentage, setSwipePercentage] = useState(0);
+  const [touchStartTime, setTouchStartTime] = useState(0);
+  const [cardTransform, setCardTransform] = useState({ x: 0, rotate: 0, blur: 0 });
+  
+  const cardRef = useRef(null);
+  const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 500;
+  
+  // Function to limit description to 15 words
+  const getLimitedDescription = (text) => {
+    if (!text) return '';
+    const words = text.split(' ');
+    if (words.length <= 15) return text;
+    return words.slice(0, 15).join(' ') + '...';
+  };
+  
+  // Swipe thresholds
   const minSwipeDistance = 50;
+  const swipeThreshold = screenWidth * 0.35; // 35% of screen width
+  const velocityThreshold = 0.5; // pixels per millisecond
 
+  // Reset card position when not active
+  useEffect(() => {
+    if (!isActive) {
+      resetCardPosition();
+    }
+  }, [isActive]);
+
+  // Reset card position
+  const resetCardPosition = () => {
+    setCardTransform({ x: 0, rotate: 0, blur: 0 });
+    setSwipePercentage(0);
+    setSwiping(false);
+    setSwipeDirection(null);
+  };
+
+  // Calculate swipe percentage (0 to 1)
+  const calculateSwipePercentage = (deltaX) => {
+    return Math.min(Math.abs(deltaX) / swipeThreshold, 1);
+  };
+
+  // Calculate card transform based on swipe
+  const calculateCardTransform = (deltaX) => {
+    const percentage = calculateSwipePercentage(deltaX);
+    const rotationFactor = 0.1; // Adjust for rotation intensity
+    const blurFactor = 3; // Max blur in pixels
+    
+    return {
+      x: deltaX,
+      rotate: deltaX * rotationFactor,
+      blur: percentage * blurFactor
+    };
+  };
+
+  // Apply swipe action with animation
+  const applySwipeAction = (direction) => {
+    const directionMultiplier = direction === 'right' ? 1 : -1;
+    const exitX = directionMultiplier * screenWidth * 1.5;
+    
+    // Set swiping and direction for visual feedback
+    setSwiping(true);
+    setSwipeDirection(direction === 'right' ? 'like' : 'dislike');
+    
+    // Animate card off screen
+    setCardTransform({
+      x: exitX,
+      rotate: directionMultiplier * 30,
+      blur: 5
+    });
+    
+    // Call the swipe handler after a short delay to allow animation
+    setTimeout(() => {
+      handleSwipe(direction === 'right' ? 'right' : 'left', template._id);
+      resetCardPosition();
+    }, 250); // Slightly faster animation for better responsiveness
+  };
+
+  // Touch event handlers for mobile
   const onTouchStart = (e) => {
+    if (!isActive) return;
+    
+    // Prevent swipe when trying to select text
+    if (window.getSelection().toString()) return;
+    
+    // Check if we're clicking on text content
+    const target = e.target;
+    if (target.tagName === 'P' || target.closest('.description-text')) return;
+    
+    setTouchStartTime(Date.now());
     setTouchEnd({ x: 0, y: 0 });
     setTouchStart({
       x: e.targetTouches[0].clientX,
       y: e.targetTouches[0].clientY,
     });
+    setSwiping(false);
+    setSwipeDirection(null);
   };
 
   const onTouchMove = (e) => {
+    if (!isActive) return;
+    
     setTouchEnd({
       x: e.targetTouches[0].clientX,
       y: e.targetTouches[0].clientY,
     });
 
     // Calculate horizontal distance
-    const horizontalDistance = touchEnd.x - touchStart.x;
+    const deltaX = touchEnd.x - touchStart.x;
+    const transform = calculateCardTransform(deltaX);
+    
+    // Update card transform
+    setCardTransform(transform);
+    
+    // Calculate swipe percentage for overlays
+    const percentage = calculateSwipePercentage(deltaX);
+    setSwipePercentage(percentage);
 
-    if (Math.abs(horizontalDistance) > minSwipeDistance) {
+    // Update swipe direction for overlay text
+    if (Math.abs(deltaX) > minSwipeDistance) {
       setSwiping(true);
-      setSwipeDirection(horizontalDistance > 0 ? "like" : "dislike");
+      setSwipeDirection(deltaX > 0 ? "like" : "dislike");
     } else {
       setSwiping(false);
       setSwipeDirection(null);
@@ -227,31 +352,121 @@ const TemplateCard = ({
   };
 
   const onTouchEnd = () => {
-    if (!touchStart.x || !touchEnd.x) return;
+    if (!isActive || !touchStart.x || !touchEnd.x) return;
 
-    const horizontalDistance = touchEnd.x - touchStart.x;
-    const verticalDistance = touchEnd.y - touchStart.y;
+    const deltaX = touchEnd.x - touchStart.x;
+    const deltaY = touchEnd.y - touchStart.y;
+    const touchDuration = Date.now() - touchStartTime;
+    const velocity = Math.abs(deltaX) / touchDuration; // pixels per ms
 
-    // If the horizontal swipe is greater than the vertical and exceeds minimum distance
+    // Check if swipe exceeds threshold or has sufficient velocity
     if (
-      Math.abs(horizontalDistance) > Math.abs(verticalDistance) &&
-      Math.abs(horizontalDistance) > minSwipeDistance
+      (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > swipeThreshold) ||
+      (Math.abs(deltaX) > minSwipeDistance && velocity > velocityThreshold)
     ) {
-      const direction = horizontalDistance > 0 ? "right" : "left";
-      handleSwipe(direction, template._id);
+      // Apply swipe action with direction
+      const direction = deltaX > 0 ? "right" : "left";
+      applySwipeAction(direction);
+    } else {
+      // Snap back to original position with animation
+      resetCardPosition();
     }
+  };
 
-    // Reset states
+  // Mouse event handlers for desktop
+  const onMouseDown = (e) => {
+    if (!isActive) return;
+    
+    // Prevent swipe when trying to select text
+    if (window.getSelection().toString()) return;
+    
+    // Check if we're clicking on text content
+    const target = e.target;
+    if (target.tagName === 'P' || target.closest('.description-text')) return;
+    
+    setTouchStartTime(Date.now());
+    setIsDragging(true);
+    setTouchEnd({ x: 0, y: 0 });
+    setTouchStart({
+      x: e.clientX,
+      y: e.clientY,
+    });
     setSwiping(false);
     setSwipeDirection(null);
   };
 
+  const onMouseMove = (e) => {
+    if (!isActive || !isDragging) return;
+    
+    setTouchEnd({
+      x: e.clientX,
+      y: e.clientY,
+    });
+
+    // Calculate horizontal distance
+    const deltaX = touchEnd.x - touchStart.x;
+    const transform = calculateCardTransform(deltaX);
+    
+    // Update card transform
+    setCardTransform(transform);
+    
+    // Calculate swipe percentage for overlays
+    const percentage = calculateSwipePercentage(deltaX);
+    setSwipePercentage(percentage);
+
+    // Update swipe direction for overlay text
+    if (Math.abs(deltaX) > minSwipeDistance) {
+      setSwiping(true);
+      setSwipeDirection(deltaX > 0 ? "like" : "dislike");
+    } else {
+      setSwiping(false);
+      setSwipeDirection(null);
+    }
+  };
+
+  const onMouseUp = () => {
+    if (!isActive || !isDragging || !touchStart.x || !touchEnd.x) {
+      setIsDragging(false);
+      return;
+    }
+
+    const deltaX = touchEnd.x - touchStart.x;
+    const deltaY = touchEnd.y - touchStart.y;
+    const touchDuration = Date.now() - touchStartTime;
+    const velocity = Math.abs(deltaX) / touchDuration; // pixels per ms
+
+    // Check if swipe exceeds threshold or has sufficient velocity
+    if (
+      (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > swipeThreshold) ||
+      (Math.abs(deltaX) > minSwipeDistance && velocity > velocityThreshold)
+    ) {
+      // Apply swipe action with direction
+      const direction = deltaX > 0 ? "right" : "left";
+      applySwipeAction(direction);
+    } else {
+      // Snap back to original position with animation
+      resetCardPosition();
+    }
+
+    // Reset dragging state
+    setIsDragging(false);
+  };
+
+  // Handle mouse leaving the element while dragging
+  const onMouseLeave = () => {
+    if (isDragging) {
+      resetCardPosition();
+      setIsDragging(false);
+    }
+  };
+
+  // Button handlers
   const handleDislike = () => {
-    handleSwipe("left", template._id);
+    applySwipeAction("left");
   };
 
   const handleLike = () => {
-    handleSwipe("right", template._id);
+    applySwipeAction("right");
   };
 
   const handleFavoriteClick = () => {
@@ -263,34 +478,69 @@ const TemplateCard = ({
     setShowDetails(!showDetails);
   };
 
+  const handleReadMore = (e) => {
+    e.stopPropagation();
+    setShowDetails(true);
+  };
+
+  // Keyboard navigation for accessibility
+  const handleKeyDown = (e) => {
+    if (!isActive) return;
+    
+    if (e.key === 'ArrowLeft') {
+      applySwipeAction('left');
+    } else if (e.key === 'ArrowRight') {
+      applySwipeAction('right');
+    } else if (e.key === 'Enter') {
+      applySwipeAction('right');
+    }
+  };
+
   return (
     <Card
+      ref={cardRef}
       style={{
         backgroundImage: `url(${template.imageUrl})`,
+        transform: `translateX(${cardTransform.x}px) rotate(${cardTransform.rotate}deg)`,
+        filter: `blur(${cardTransform.blur}px)`,
         ...style,
       }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseLeave}
+      onKeyDown={handleKeyDown}
+      tabIndex={isActive ? 0 : -1}
+      aria-label={`Template: ${template.title}. Use arrow keys to like or dislike.`}
+      role="button"
     >
       <CardOverlay />
       
-      <InfoButton onClick={toggleDetails}>
+      {/* Directional overlays */}
+      <LikeOverlay style={{ opacity: touchEnd.x > touchStart.x ? swipePercentage : 0 }} />
+      <DislikeOverlay style={{ opacity: touchEnd.x < touchStart.x ? swipePercentage : 0 }} />
+      
+      <InfoButton 
+        onClick={toggleDetails}
+        aria-label="Show more details"
+      >
         <Info fontSize="small" />
       </InfoButton>
-      
-      <SwipeOverlay
-        className={swipeDirection}
-        style={{ opacity: swiping ? 0.9 : 0 }}
-      >
-        {swipeDirection === "like" ? "Like" : "Nope"}
-      </SwipeOverlay>
 
       <CardContent>
         <Title>{template.title}</Title>
-        <Description style={{ maxHeight: showDetails ? 'none' : '48px' }}>
-          {template.description}
+        <Description className="description-text" showDetails={showDetails}>
+          {showDetails ? template.description : getLimitedDescription(template.description)}
         </Description>
+        
+        {!showDetails && template.description && template.description.split(' ').length > 15 && (
+          <ReadMoreButton onClick={handleReadMore} aria-label="Read full description">
+            Read More
+          </ReadMoreButton>
+        )}
 
         <TagsContainer>
           {template.tags.map((tag, index) => (
@@ -299,15 +549,24 @@ const TemplateCard = ({
         </TagsContainer>
         
         <ButtonsContainer>
-          <ActionButton onClick={handleDislike}>
+          <ActionButton 
+            onClick={handleDislike}
+            aria-label="Dislike template"
+          >
             <Close style={{ color: "var(--status-error)", fontSize: 28 }} />
           </ActionButton>
 
-          <ActionButton onClick={handleFavoriteClick}>
+          <ActionButton 
+            onClick={handleFavoriteClick}
+            aria-label="Add to favorites"
+          >
             <Star style={{ color: "var(--action-favorite)", fontSize: 28 }} />
           </ActionButton>
 
-          <ActionButton onClick={handleLike}>
+          <ActionButton 
+            onClick={handleLike}
+            aria-label="Like template"
+          >
             <Favorite style={{ fontSize: 28 }} />
           </ActionButton>
         </ButtonsContainer>

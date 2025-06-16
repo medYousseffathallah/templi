@@ -229,7 +229,7 @@ const AuthModal = ({ isOpen, onClose }) => {
 
         <Tabs>
           <Tab
-            active={activeTab === "login"}
+            active={activeTab === "login" ? "true" : "false"}
             onClick={() => {
               setActiveTab("login");
               setFormError("");
@@ -239,7 +239,7 @@ const AuthModal = ({ isOpen, onClose }) => {
             Login
           </Tab>
           <Tab
-            active={activeTab === "signup"}
+            active={activeTab === "signup" ? "true" : "false"}
             onClick={() => {
               setActiveTab("signup");
               setFormError("");

@@ -126,26 +126,40 @@ const SwipeContainer = () => {
     fetchTemplates();
   }, []);
 
-  const handleSwipe = (direction, templateId) => {
+  const handleSwipe = async (direction, templateId) => {
     // Only record interactions if user is authenticated
     if (isAuthenticated && currentUser) {
-      if (direction === "right") {
-        interactionApi.likeTemplate(currentUser._id, templateId);
-      } else if (direction === "left") {
-        interactionApi.dislikeTemplate(currentUser._id, templateId);
+      console.log('Current user:', currentUser);
+      console.log('Template ID:', templateId);
+      try {
+        if (direction === "right") {
+          await interactionApi.likeTemplate(currentUser.id, templateId);
+        } else if (direction === "left") {
+          await interactionApi.dislikeTemplate(currentUser.id, templateId);
+        }
+        // Move to the next card
+        setCurrentIndex((prevIndex) => prevIndex + 1);
+      } catch (err) {
+        console.error("Error recording swipe interaction:", err);
+        // Still move to the next card even if the interaction fails
+        setCurrentIndex((prevIndex) => prevIndex + 1);
       }
+    } else {
+      // Move to the next card if not authenticated
+      setCurrentIndex((prevIndex) => prevIndex + 1);
     }
-
-    // Move to the next card
-    setCurrentIndex((prevIndex) => prevIndex + 1);
   };
 
-  const handleFavorite = (templateId) => {
+  const handleFavorite = async (templateId) => {
     if (isAuthenticated && currentUser) {
-      interactionApi.favoriteTemplate(currentUser._id, templateId);
-
-      // Also add to user's favorites collection
-      userApi.addToFavorites(currentUser._id, templateId);
+      try {
+        await interactionApi.favoriteTemplate(currentUser._id, templateId);
+        // Also add to user's favorites collection
+        await userApi.addToFavorites(currentUser._id, templateId);
+      } catch (err) {
+        console.error("Error adding to favorites:", err);
+        alert("Failed to add to favorites. Please try again.");
+      }
     } else {
       // If not authenticated, show auth modal
       alert("Please sign in to save favorites");
@@ -211,10 +225,6 @@ const SwipeContainer = () => {
   return (
     <Container>
       <CardContainer>
-        <ProgressIndicator>
-          {currentIndex + 1} of {templates.length}
-        </ProgressIndicator>
-        
         {templates.map((template, index) => (
           <TemplateCard
             key={template._id}
