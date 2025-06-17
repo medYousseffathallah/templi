@@ -7,6 +7,7 @@ import Sidebar from "./components/Sidebar";
 import MobileNavigation from "./components/MobileNavigation";
 import ExplorePage from "./pages/ExplorePage";
 import UploadPage from "./pages/UploadPage";
+import FavoritesPage from "./pages/FavoritesPage";
 import styled from "styled-components";
 import { AuthProvider } from "./context/AuthContext";
 import theme from "./theme";
@@ -49,7 +50,7 @@ function App() {
             <Route path="/upload" element={<UploadPage />} />
             <Route
               path="/favorites"
-              element={<PageWrapper>Favorites Page</PageWrapper>}
+              element={<FavoritesPage />}
             />
             <Route
               path="/saved"

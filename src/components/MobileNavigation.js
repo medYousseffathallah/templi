@@ -74,12 +74,12 @@ function MobileNavigation() {
 
   return (
     <NavContainer>
-      <NavItem to="/" active={isActive('/')}>
+      <NavItem to="/" active={isActive('/').toString()}>
         <Home fontSize="small" />
         <NavText>Home</NavText>
       </NavItem>
       
-      <NavItem to="/explore" active={isActive('/explore')}>
+      <NavItem to="/explore" active={isActive('/explore').toString()}>
         <Explore fontSize="small" />
         <NavText>Explore</NavText>
       </NavItem>
@@ -88,14 +88,14 @@ function MobileNavigation() {
         <Add />
       </AddButton>
       
-      <NavItem to="/favorites" active={isActive('/favorites')}>
+      <NavItem to="/favorites" active={isActive('/favorites').toString()}>
         <Favorite fontSize="small" />
         <NavText>Favorites</NavText>
       </NavItem>
       
       <NavItem 
         to={isAuthenticated ? "/profile" : "#"} 
-        active={isActive('/profile')} 
+        active={isActive('/profile').toString()} 
         onClick={!isAuthenticated ? () => document.dispatchEvent(new CustomEvent('openAuthModal')) : undefined}
       >
         <Person fontSize="small" />

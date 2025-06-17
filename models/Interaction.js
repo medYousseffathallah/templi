@@ -27,10 +27,14 @@ const interactionSchema = new mongoose.Schema(
   }
 );
 
-// Create a compound index to ensure a user can only have one interaction type per template
+// Create a compound index to ensure a user can only have one like/dislike/favorite per template
+// But allow multiple view interactions
 interactionSchema.index(
   { user: 1, template: 1, interactionType: 1 },
-  { unique: true }
+  { 
+    unique: true,
+    partialFilterExpression: { interactionType: { $in: ["like", "dislike", "favorite"] } }
+  }
 );
 
 module.exports = mongoose.model("Interaction", interactionSchema);

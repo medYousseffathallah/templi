@@ -65,15 +65,55 @@ export const userApi = {
   updateProfile: (id, userData) => api.patch(`/users/${id}`, userData),
 
   // Get user's favorite templates
-  getFavorites: (id) => api.get(`/users/${id}/favorites`),
+  getFavorites: (userId) => {
+    // Ensure userId is a string and properly formatted
+    let userIdStr;
+    if (userId && typeof userId === 'object' && userId._id) {
+      // If userId is an object with _id property, use that
+      userIdStr = userId._id.toString();
+    } else {
+      // Otherwise use the userId directly
+      userIdStr = userId.toString();
+    }
+    
+    console.log('Getting favorites - using userId:', userIdStr, 'type:', typeof userIdStr);
+    
+    return api.get(`/users/${userIdStr}/favorites`);
+  },
 
   // Add template to favorites
-  addToFavorites: (userId, templateId) =>
-    api.post(`/users/${userId}/favorites/${templateId}`),
+  addToFavorites: (userId, templateId) => {
+    // Ensure userId is a string and properly formatted
+    let userIdStr;
+    if (userId && typeof userId === 'object' && userId._id) {
+      // If userId is an object with _id property, use that
+      userIdStr = userId._id.toString();
+    } else {
+      // Otherwise use the userId directly
+      userIdStr = userId.toString();
+    }
+    
+    console.log('Adding to favorites - using userId:', userIdStr, 'type:', typeof userIdStr);
+    
+    return api.post(`/users/${userIdStr}/favorites/${templateId}`);
+  },
 
   // Remove template from favorites
-  removeFromFavorites: (userId, templateId) =>
-    api.delete(`/users/${userId}/favorites/${templateId}`),
+  removeFromFavorites: (userId, templateId) => {
+    // Ensure userId is a string and properly formatted
+    let userIdStr;
+    if (userId && typeof userId === 'object' && userId._id) {
+      // If userId is an object with _id property, use that
+      userIdStr = userId._id.toString();
+    } else {
+      // Otherwise use the userId directly
+      userIdStr = userId.toString();
+    }
+    
+    console.log('Removing from favorites - using userId:', userIdStr, 'type:', typeof userIdStr);
+    
+    return api.delete(`/users/${userIdStr}/favorites/${templateId}`);
+  },
 };
 
 // Interaction API calls
@@ -97,11 +137,31 @@ export const interactionApi = {
 
   // Helper methods for common interactions
   likeTemplate: (userId, templateId) => {
-    return api.post("/interactions", { userId, templateId, interactionType: "like" })
+    // Ensure userId is a string and properly formatted
+    let userIdStr;
+    if (userId && typeof userId === 'object' && userId._id) {
+      // If userId is an object with _id property, use that
+      userIdStr = userId._id.toString();
+    } else {
+      // Otherwise use the userId directly
+      userIdStr = userId.toString();
+    }
+    
+    console.log('Like template - using userId:', userIdStr, 'type:', typeof userIdStr);
+    
+    return api.post("/interactions", { 
+      userId: userIdStr, 
+      templateId, 
+      interactionType: "like",
+      // Include additional user info to help server identify the user
+      username: userId && typeof userId === 'object' ? userId.username : undefined,
+      email: userId && typeof userId === 'object' ? userId.email : undefined
+    })
     .then(response => {
       return response;
     })
     .catch(err => {
+      console.log('Like error response:', err.response?.data);
       // If the interaction already exists, we can consider this a success
       if (err.response?.data?.message === "Interaction already exists") {
         console.log('Like interaction already exists, treating as success');
@@ -113,15 +173,31 @@ export const interactionApi = {
   },
 
   dislikeTemplate: (userId, templateId) => {
-    return api.post("/interactions", {
-      userId,
-      templateId,
+    // Ensure userId is a string and properly formatted
+    let userIdStr;
+    if (userId && typeof userId === 'object' && userId._id) {
+      // If userId is an object with _id property, use that
+      userIdStr = userId._id.toString();
+    } else {
+      // Otherwise use the userId directly
+      userIdStr = userId.toString();
+    }
+    
+    console.log('Dislike template - using userId:', userIdStr, 'type:', typeof userIdStr);
+    
+    return api.post("/interactions", { 
+      userId: userIdStr, 
+      templateId, 
       interactionType: "dislike",
+      // Include additional user info to help server identify the user
+      username: userId && typeof userId === 'object' ? userId.username : undefined,
+      email: userId && typeof userId === 'object' ? userId.email : undefined
     })
     .then(response => {
       return response;
     })
     .catch(err => {
+      console.log('Dislike error response:', err.response?.data);
       // If the interaction already exists, we can consider this a success
       if (err.response?.data?.message === "Interaction already exists") {
         console.log('Dislike interaction already exists, treating as success');
@@ -133,36 +209,83 @@ export const interactionApi = {
   },
 
   favoriteTemplate: (userId, templateId) => {
-    return api.post("/interactions", {
-      userId,
-      templateId,
+    // Ensure userId is a string and properly formatted
+    let userIdStr;
+    if (userId && typeof userId === 'object' && userId._id) {
+      // If userId is an object with _id property, use that
+      userIdStr = userId._id.toString();
+    } else {
+      // Otherwise use the userId directly
+      userIdStr = userId.toString();
+    }
+    
+    console.log('Favorite template - using userId:', userIdStr, 'type:', typeof userIdStr);
+    
+    return api.post("/interactions", { 
+      userId: userIdStr, 
+      templateId, 
       interactionType: "favorite",
+      // Include additional user info to help server identify the user
+      username: userId && typeof userId === 'object' ? userId.username : undefined,
+      email: userId && typeof userId === 'object' ? userId.email : undefined
     })
     .then(response => {
       return response;
     })
     .catch(err => {
+      console.log('Favorite error response:', err.response?.data);
       // If the interaction already exists, we can consider this a success
       if (err.response?.data?.message === "Interaction already exists") {
-        console.log('Interaction already exists, treating as success');
+        console.log('Favorite interaction already exists, treating as success');
         return { data: { message: "Interaction already exists" } };
       }
       // Otherwise, rethrow the error
       throw err;
     });
   },
-
+  
   viewTemplate: (userId, templateId) => {
-    return api.post("/interactions", { userId, templateId, interactionType: "view" })
+    // Ensure userId is a string and properly formatted
+    let userIdStr;
+    if (userId && typeof userId === 'object' && userId._id) {
+      // If userId is an object with _id property, use that
+      userIdStr = userId._id.toString();
+    } else {
+      // Otherwise use the userId directly
+      userIdStr = userId.toString();
+    }
+    
+    console.log('View template - using userId:', userIdStr, 'type:', typeof userIdStr);
+    console.log('View template - templateId:', templateId, 'type:', typeof templateId);
+    
+    return api.post("/interactions", { 
+      userId: userIdStr, 
+      templateId, 
+      interactionType: "view",
+      // Include additional user info to help server identify the user
+      username: userId && typeof userId === 'object' ? userId.username : undefined,
+      email: userId && typeof userId === 'object' ? userId.email : undefined
+    })
     .then(response => {
+      console.log('View interaction recorded successfully');
       return response;
     })
     .catch(err => {
+      console.log('View error response:', err.response?.data);
+      console.log('View error status:', err.response?.status);
+      
       // If the interaction already exists, we can consider this a success
       if (err.response?.data?.message === "Interaction already exists") {
         console.log('View interaction already exists, treating as success');
         return { data: { message: "Interaction already exists" } };
       }
+      
+      // If it's a 400 error with user/template not found, log but don't throw
+      if (err.response?.status === 400) {
+        console.log('View interaction failed with 400 error, but continuing:', err.response.data.message);
+        return { data: { message: "View interaction failed but continuing" } };
+      }
+      
       // Otherwise, rethrow the error
       throw err;
     });

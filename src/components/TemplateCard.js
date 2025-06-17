@@ -218,6 +218,8 @@ const TemplateCard = ({
   handleSwipe,
   handleFavorite,
   style,
+  showRemoveButton = false,
+  onRemoveFromFavorites,
 }) => {
   const [touchStart, setTouchStart] = useState({ x: 0, y: 0 });
   const [touchEnd, setTouchEnd] = useState({ x: 0, y: 0 });
@@ -514,6 +516,7 @@ const TemplateCard = ({
       onMouseLeave={onMouseLeave}
       onKeyDown={handleKeyDown}
       tabIndex={isActive ? 0 : -1}
+      data-active={isActive ? "true" : "false"}
       aria-label={`Template: ${template.title}. Use arrow keys to like or dislike.`}
       role="button"
     >
@@ -549,26 +552,38 @@ const TemplateCard = ({
         </TagsContainer>
         
         <ButtonsContainer>
-          <ActionButton 
-            onClick={handleDislike}
-            aria-label="Dislike template"
-          >
-            <Close style={{ color: "var(--status-error)", fontSize: 28 }} />
-          </ActionButton>
+          {showRemoveButton ? (
+            <ActionButton 
+              onClick={() => onRemoveFromFavorites && onRemoveFromFavorites()}
+              aria-label="Remove from favorites"
+              style={{ backgroundColor: 'var(--status-error)', color: 'white' }}
+            >
+              <Close style={{ fontSize: 28 }} />
+            </ActionButton>
+          ) : (
+            <>
+              <ActionButton 
+                onClick={handleDislike}
+                aria-label="Dislike template"
+              >
+                <Close style={{ color: "var(--status-error)", fontSize: 28 }} />
+              </ActionButton>
 
-          <ActionButton 
-            onClick={handleFavoriteClick}
-            aria-label="Add to favorites"
-          >
-            <Star style={{ color: "var(--action-favorite)", fontSize: 28 }} />
-          </ActionButton>
+              <ActionButton 
+                onClick={handleFavoriteClick}
+                aria-label="Add to favorites"
+              >
+                <Star style={{ color: "var(--action-favorite)", fontSize: 28 }} />
+              </ActionButton>
 
-          <ActionButton 
-            onClick={handleLike}
-            aria-label="Like template"
-          >
-            <Favorite style={{ fontSize: 28 }} />
-          </ActionButton>
+              <ActionButton 
+                onClick={handleLike}
+                aria-label="Like template"
+              >
+                <Favorite style={{ fontSize: 28 }} />
+              </ActionButton>
+            </>
+          )}
         </ButtonsContainer>
       </CardContent>
     </Card>

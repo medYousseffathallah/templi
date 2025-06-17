@@ -112,7 +112,49 @@ const SwipeContainer = () => {
       // Use getAll instead of discover to avoid pagination issues
       const response = await templateApi.getAll();
       console.log("API response:", response);
-      setTemplates(response.data);
+      
+      // If user is authenticated, filter out templates they've already interacted with
+      if (isAuthenticated && currentUser) {
+        const userId = currentUser._id || currentUser.id;
+        console.log('Filtering templates for user:', userId);
+        
+        try {
+          // Get all user interactions
+          const userInteractions = await interactionApi.getByUser(userId);
+          console.log('User interactions:', userInteractions.data);
+          
+          // Extract template IDs the user has liked or favorited (exclude disliked to allow re-interaction)
+          // Only filter out liked and favorited templates, keep disliked ones
+          const excludedTemplateIds = userInteractions.data
+            .filter(interaction => interaction.interactionType === 'like' || interaction.interactionType === 'favorite')
+            .map(interaction => interaction.template._id || interaction.template);
+          console.log('Templates to exclude (liked/favorited):', excludedTemplateIds);
+          
+          // Filter out only liked and favorited templates, keep disliked ones for re-interaction
+          const filteredTemplates = response.data.filter(template => {
+            const templateId = template._id;
+            const shouldExclude = excludedTemplateIds.some(id => {
+              // Handle both string and object IDs
+              const excludedId = typeof id === 'object' ? id._id : id;
+              const templateIdStr = typeof templateId === 'object' ? templateId._id : templateId;
+              return excludedId === templateIdStr;
+            });
+            return !shouldExclude;
+          });
+          
+          console.log('Filtered templates count:', filteredTemplates.length);
+          
+          setTemplates(filteredTemplates);
+        } catch (interactionErr) {
+          console.error("Error fetching user interactions:", interactionErr);
+          // If we can't get interactions, just show all templates
+          setTemplates(response.data);
+        }
+      } else {
+        // If not authenticated, show all templates
+        setTemplates(response.data);
+      }
+      
       setCurrentIndex(0);
       setLoading(false);
     } catch (err) {
@@ -125,6 +167,31 @@ const SwipeContainer = () => {
   useEffect(() => {
     fetchTemplates();
   }, []);
+
+  // Record view interaction when a new template is shown
+  useEffect(() => {
+    const recordViewInteraction = async () => {
+      if (isAuthenticated && currentUser && templates.length > 0 && currentIndex < templates.length) {
+        const userId = currentUser._id || currentUser.id;
+        const templateId = templates[currentIndex]._id;
+        
+        try {
+          console.log('Recording view interaction for template:', templateId);
+          // The API will handle the case if the interaction already exists
+          await interactionApi.viewTemplate(userId, templateId);
+          
+          // Check if we need to update the interaction status
+          // This is handled by the API, which will return success even if the interaction already exists
+          console.log('View interaction recorded or already existed');
+        } catch (err) {
+          // Just log the error but don't show to user
+          console.error('Error recording view interaction:', err);
+        }
+      }
+    };
+    
+    recordViewInteraction();
+  }, [currentIndex, templates, isAuthenticated, currentUser]);
 
   const handleSwipe = async (direction, templateId) => {
     if (isAuthenticated && currentUser) {
@@ -163,15 +230,44 @@ const SwipeContainer = () => {
         console.log('Using user ID:', userId);
         
         // Create the interaction (API now handles the case if it already exists)
-        await interactionApi.favoriteTemplate(userId, templateId);
+        const interactionResult = await interactionApi.favoriteTemplate(userId, templateId);
+        console.log('Interaction result:', interactionResult);
         
-        // Add to user's favorites collection
-        await userApi.addToFavorites(userId, templateId);
+        // Also create a like interaction for the same template
+        await interactionApi.likeTemplate(userId, templateId);
+        console.log('Also liked the template');
+        
+        // Add to user's favorites collection - use the string version of the ID
+        // MongoDB ObjectIds are stored as strings in the database
+        const userIdStr = userId.toString();
+        await userApi.addToFavorites(userIdStr, templateId);
         console.log('Successfully added to favorites');
+        
+        // Move to the next card like a swipe right
+        setCurrentIndex((prevIndex) => prevIndex + 1);
       } catch (err) {
         console.error("Error adding to favorites:", err);
         console.error("Error details:", err.response?.data);
-        alert("Failed to add to favorites. Please try again.");
+        
+        // Don't show alert for duplicate interaction errors
+        if (err.response?.data?.message !== "Interaction already exists") {
+          alert("Failed to add to favorites. Please try again.");
+        } else {
+          console.log('Interaction already exists, continuing with adding to favorites');
+          
+          try {
+            // Even if the interaction exists, still try to add to favorites
+            const userIdStr = (currentUser._id || currentUser.id).toString();
+            await userApi.addToFavorites(userIdStr, templateId);
+            console.log('Successfully added to favorites after handling duplicate interaction');
+            
+            // Move to the next card like a swipe right
+            setCurrentIndex((prevIndex) => prevIndex + 1);
+          } catch (favErr) {
+            console.error("Error adding to favorites collection:", favErr);
+            alert("Failed to add to favorites. Please try again.");
+          }
+        }
       }
     } else {
       // If not authenticated, show auth modal
