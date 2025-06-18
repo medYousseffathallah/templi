@@ -8,6 +8,7 @@ import MobileNavigation from "./components/MobileNavigation";
 import ExplorePage from "./pages/ExplorePage";
 import UploadPage from "./pages/UploadPage";
 import FavoritesPage from "./pages/FavoritesPage";
+import TrendingPage from "./pages/TrendingPage";
 import styled from "styled-components";
 import { AuthProvider } from "./context/AuthContext";
 import theme from "./theme";
@@ -58,7 +59,7 @@ function App() {
             />
             <Route
               path="/trending"
-              element={<PageWrapper>Trending Templates</PageWrapper>}
+              element={<TrendingPage />}
             />
             <Route
               path="/profile"

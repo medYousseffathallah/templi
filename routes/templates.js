@@ -230,6 +230,169 @@ router.delete("/:id", getTemplate, async (req, res) => {
   }
 });
 
+// Get trending templates
+router.get("/trending/:type", async (req, res) => {
+  try {
+    const { type } = req.params;
+    const limit = parseInt(req.query.limit) || 10;
+    
+    // Validate interaction type
+    if (!['like', 'favorite'].includes(type)) {
+      return res.status(400).json({ message: "Invalid interaction type. Use 'like' or 'favorite'" });
+    }
+    
+    // Calculate date for one week ago
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    const Interaction = require("../models/Interaction");
+    
+    // Aggregate interactions to get trending templates
+    const trendingTemplates = await Interaction.aggregate([
+      {
+        $match: {
+          interactionType: type,
+          createdAt: { $gte: oneWeekAgo }
+        }
+      },
+      {
+        $group: {
+          _id: "$template",
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { count: -1 }
+      },
+      {
+        $limit: limit
+      },
+      {
+        $lookup: {
+          from: "templates",
+          localField: "_id",
+          foreignField: "_id",
+          as: "template"
+        }
+      },
+      {
+        $unwind: "$template"
+      },
+      {
+        $addFields: {
+          "template.likeCount": {
+            $cond: {
+              if: { $eq: [type, "like"] },
+              then: "$count",
+              else: 0
+            }
+          },
+          "template.favoriteCount": {
+            $cond: {
+              if: { $eq: [type, "favorite"] },
+              then: "$count",
+              else: 0
+            }
+          }
+        }
+      },
+      {
+        $replaceRoot: { newRoot: "$template" }
+      }
+    ]);
+    
+    // Get both weekly trending counts and total counts for each template
+    const templatesWithCounts = await Promise.all(
+      trendingTemplates.map(async (template) => {
+        // Weekly counts (for trending)
+        const weeklyLikeCount = await Interaction.countDocuments({
+          template: template._id,
+          interactionType: "like",
+          createdAt: { $gte: oneWeekAgo }
+        });
+        
+        const weeklyFavoriteCount = await Interaction.countDocuments({
+          template: template._id,
+          interactionType: "favorite",
+          createdAt: { $gte: oneWeekAgo }
+        });
+        
+        // Total counts (all time)
+        const totalLikeCount = await Interaction.countDocuments({
+          template: template._id,
+          interactionType: "like"
+        });
+        
+        const totalFavoriteCount = await Interaction.countDocuments({
+          template: template._id,
+          interactionType: "favorite"
+        });
+        
+        return {
+          ...template,
+          // Weekly trending counts
+          weeklyLikeCount,
+          weeklyFavoriteCount,
+          // Total counts (display these in UI)
+          likeCount: totalLikeCount,
+          favoriteCount: totalFavoriteCount,
+          // Also include the static counts from template model for reference
+          staticLikes: template.likes || 0,
+          staticDislikes: template.dislikes || 0
+        };
+      })
+    );
+    
+    res.json(templatesWithCounts);
+  } catch (err) {
+    console.error("Error fetching trending templates:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Debug endpoint to check interactions
+router.get("/debug/interactions", async (req, res) => {
+  try {
+    const allInteractions = await Interaction.find()
+      .populate('user', 'name email')
+      .populate('template', 'title')
+      .sort({ createdAt: -1 })
+      .limit(20);
+    
+    const interactionStats = await Interaction.aggregate([
+      {
+        $group: {
+          _id: '$interactionType',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    const favoriteInteractions = await Interaction.find({ interactionType: 'favorite' })
+      .populate('user', 'name email')
+      .populate('template', 'title');
+    
+    res.json({
+      totalInteractions: allInteractions.length,
+      interactionStats,
+      recentInteractions: allInteractions.map(i => ({
+        type: i.interactionType,
+        user: i.user?.name || 'Unknown',
+        template: i.template?.title || 'Unknown',
+        createdAt: i.createdAt
+      })),
+      favoriteInteractions: favoriteInteractions.map(i => ({
+        user: i.user?.name || 'Unknown',
+        template: i.template?.title || 'Unknown',
+        createdAt: i.createdAt
+      }))
+    });
+  } catch (err) {
+    console.error("Error in debug endpoint:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Middleware to get template by ID
 async function getTemplate(req, res, next) {
   let template;

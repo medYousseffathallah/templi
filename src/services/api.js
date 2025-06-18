@@ -48,6 +48,9 @@ export const templateApi = {
 
   // Delete a template
   delete: (id) => api.delete(`/templates/${id}`),
+
+  // Get trending templates
+  getTrending: (type) => api.get(`/templates/trending/${type}`),
 };
 
 // User API calls

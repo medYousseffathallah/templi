@@ -240,8 +240,11 @@ const SwipeContainer = () => {
         // Add to user's favorites collection - use the string version of the ID
         // MongoDB ObjectIds are stored as strings in the database
         const userIdStr = userId.toString();
-        await userApi.addToFavorites(userIdStr, templateId);
+        await interactionApi.favoriteTemplate(userIdStr, templateId);
         console.log('Successfully added to favorites');
+        
+        // Also add to user's favorites collection
+        await userApi.addToFavorites(userIdStr, templateId);
         
         // Move to the next card like a swipe right
         setCurrentIndex((prevIndex) => prevIndex + 1);
@@ -258,8 +261,11 @@ const SwipeContainer = () => {
           try {
             // Even if the interaction exists, still try to add to favorites
             const userIdStr = (currentUser._id || currentUser.id).toString();
-            await userApi.addToFavorites(userIdStr, templateId);
+            await interactionApi.favoriteTemplate(userIdStr, templateId);
             console.log('Successfully added to favorites after handling duplicate interaction');
+            
+            // Also add to user's favorites collection
+            await userApi.addToFavorites(userIdStr, templateId);
             
             // Move to the next card like a swipe right
             setCurrentIndex((prevIndex) => prevIndex + 1);

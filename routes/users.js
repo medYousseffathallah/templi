@@ -115,6 +115,7 @@ router.post("/:id/favorites/:templateId", getUser, async (req, res) => {
   try {
     const mongoose = require('mongoose');
     const Template = require('../models/Template');
+    const Interaction = require('../models/Interaction');
     const templateId = req.params.templateId;
     let templateObjectId;
     let template;
@@ -147,6 +148,29 @@ router.post("/:id/favorites/:templateId", getUser, async (req, res) => {
       res.user.favorites.push(templateObjectId);
       await res.user.save();
       console.log('Template added to favorites successfully');
+      
+      // Create or update interaction record for trending
+      const existingInteraction = await Interaction.findOne({
+        user: res.user._id,
+        template: templateObjectId,
+      });
+      
+      if (existingInteraction) {
+        // Update existing interaction to favorite
+        existingInteraction.interactionType = 'favorite';
+        existingInteraction.createdAt = new Date();
+        await existingInteraction.save();
+        console.log('Updated existing interaction to favorite');
+      } else {
+        // Create new favorite interaction
+        const interaction = new Interaction({
+          user: res.user._id,
+          template: templateObjectId,
+          interactionType: 'favorite',
+        });
+        await interaction.save();
+        console.log('Created new favorite interaction');
+      }
     } else {
       console.log('Template already in favorites');
     }
@@ -163,6 +187,7 @@ router.delete("/:id/favorites/:templateId", getUser, async (req, res) => {
   try {
     const mongoose = require('mongoose');
     const Template = require('../models/Template');
+    const Interaction = require('../models/Interaction');
     const templateId = req.params.templateId;
     let templateObjectId;
     let template;
@@ -197,6 +222,19 @@ router.delete("/:id/favorites/:templateId", getUser, async (req, res) => {
     // Check if anything was removed
     if (initialCount > res.user.favorites.length) {
       console.log('Template removed from favorites');
+      
+      // Remove the favorite interaction record
+      const deletedInteraction = await Interaction.findOneAndDelete({
+        user: res.user._id,
+        template: templateObjectId,
+        interactionType: 'favorite'
+      });
+      
+      if (deletedInteraction) {
+        console.log('Removed favorite interaction record');
+      } else {
+        console.log('No favorite interaction record found to remove');
+      }
     } else {
       console.log('Template was not in favorites');
     }
