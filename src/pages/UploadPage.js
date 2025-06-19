@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 import { templateApi } from "../services/api";
@@ -35,6 +35,17 @@ import {
   LinearProgress,
   Fade,
   Zoom,
+  Badge,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText as MuiListItemText,
+  RadioGroup,
+  Radio,
 } from "@mui/material";
 import {
   Add,
@@ -55,6 +66,20 @@ import {
   AccessibilityNew,
   GitHub,
   Celebration,
+  Info,
+  Warning,
+  Error,
+  AutoAwesome,
+  Image,
+  Delete,
+  Edit,
+  TrendingUp,
+  People,
+  Schedule,
+  CheckBox,
+  CheckBoxOutlineBlank,
+  RadioButtonUnchecked,
+  ErrorOutline,
 } from "@mui/icons-material";
 
 const PageContainer = styled.div`
@@ -307,14 +332,16 @@ const RemoveImageButton = styled(IconButton)`
   }
 `;
 
-const UploadZone = styled.div`
-  border: 2px dashed var(--divider);
+const UploadZone = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['isDragOver'].includes(prop),
+})`
+  border: 2px dashed ${props => props.isDragOver ? 'var(--primary-main)' : 'var(--divider)'};
   border-radius: 8px;
   padding: 32px;
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
-  background-color: rgba(0, 0, 0, 0.01);
+  background-color: ${props => props.isDragOver ? 'rgba(255, 88, 100, 0.05)' : 'rgba(0, 0, 0, 0.01)'};
   
   &:hover {
     border-color: var(--primary-main);
@@ -398,6 +425,323 @@ const BenefitItem = styled.li`
 const BenefitIcon = styled(CheckCircle)`
   color: var(--primary-main);
   font-size: 20px;
+`;
+
+// New styled components for improved UX
+const ProgressHeader = styled.div`
+  background: linear-gradient(135deg, var(--primary-main) 0%, #ff8a9d 100%);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 32px;
+  color: white;
+  text-align: center;
+`;
+
+const StepIndicator = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+  opacity: 0.9;
+`;
+
+const QualityScoreCard = styled(Card)`
+  margin-bottom: 24px;
+  border-radius: 12px;
+  border: 2px solid ${props => {
+    if (props.score >= 80) return 'var(--status-success)';
+    if (props.score >= 50) return 'orange';
+    return 'var(--status-error)';
+  }};
+  background: ${props => {
+    if (props.score >= 80) return 'rgba(76, 175, 80, 0.05)';
+    if (props.score >= 50) return 'rgba(255, 152, 0, 0.05)';
+    return 'rgba(244, 67, 54, 0.05)';
+  }};
+`;
+
+const QualityScoreHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--divider);
+`;
+
+const QualityScoreProgress = styled(LinearProgress)`
+  height: 8px;
+  border-radius: 4px;
+  margin: 8px 0;
+  
+  .MuiLinearProgress-bar {
+    background-color: ${props => {
+      if (props.score >= 80) return 'var(--status-success)';
+      if (props.score >= 50) return 'orange';
+      return 'var(--status-error)';
+    }};
+  }
+`;
+
+const RequirementsList = styled.div`
+  padding: 16px 20px;
+`;
+
+const RequirementItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  color: ${props => props.completed ? 'var(--status-success)' : 'var(--text-secondary)'};
+`;
+
+const ImageUploadZone = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['isDragOver'].includes(prop),
+})`
+  border: 2px dashed ${props => props.isDragOver ? 'var(--primary-main)' : 'var(--divider)'};
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: ${props => props.isDragOver ? 'rgba(255, 88, 100, 0.05)' : 'rgba(0, 0, 0, 0.01)'};
+  margin-bottom: 16px;
+  
+  &:hover {
+    border-color: var(--primary-main);
+    background-color: rgba(255, 88, 100, 0.02);
+  }
+`;
+
+const ImageGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+`;
+
+const ImageCard = styled.div`
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--divider);
+  transition: all 0.3s ease;
+  aspect-ratio: 1;
+  
+  &:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const ImageActions = styled.div`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+`;
+
+const ImageActionButton = styled(IconButton)`
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 4px;
+  
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.8);
+  }
+`;
+
+const PricingToggle = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  background-color: rgba(0, 0, 0, 0.02);
+`;
+
+const PricingInfo = styled.div`
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 6px;
+  background-color: rgba(255, 88, 100, 0.05);
+  border: 1px solid rgba(255, 88, 100, 0.2);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+`;
+
+const ValidationError = styled.div`
+  color: var(--status-error);
+  font-size: 0.8rem;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const CharacterCounter = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['isOver'].includes(prop),
+})`
+  font-size: 0.8rem;
+  color: ${props => props.isOver ? 'var(--status-error)' : 'var(--text-secondary)'};
+  text-align: right;
+  margin-top: 4px;
+`;
+
+const SaveIndicator = styled(Badge)`
+  .MuiBadge-badge {
+    background-color: var(--status-success);
+    color: white;
+    font-size: 0.7rem;
+    padding: 4px 8px;
+    border-radius: 12px;
+  }
+`;
+
+const PreviewDialog = styled(Dialog)`
+  .MuiDialog-paper {
+    max-width: 800px;
+    width: 90vw;
+  }
+`;
+
+const PublishChecklist = styled.div`
+  background-color: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+`;
+
+const ChecklistItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  color: ${props => props.completed ? 'var(--status-success)' : 'var(--text-secondary)'};
+`;
+
+const ConfidenceBooster = styled.div`
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+  padding: 16px;
+  border-radius: 8px;
+  text-align: center;
+  margin-bottom: 24px;
+`;
+
+const GenerateButton = styled(Button)`
+  margin-left: 8px;
+  background-color: var(--primary-light);
+  color: var(--primary-main);
+  
+  &:hover {
+    background-color: var(--primary-main);
+    color: white;
+  }
+`;
+
+const BenefitsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+`;
+
+const BenefitCard = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background-color: rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--divider);
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: rgba(255, 88, 100, 0.05);
+    border-color: var(--primary-light);
+  }
+`;
+
+const BenefitIconWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--primary-light);
+  color: var(--primary-main);
+`;
+
+const InspirationSection = styled.div`
+  margin-top: 24px;
+`;
+
+const InspirationHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+`;
+
+const TemplateGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+`;
+
+const TemplateCard = styled(Card)`
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
+`;
+
+const StickyNavigation = styled.div`
+  position: sticky;
+  bottom: 0;
+  background: white;
+  border-top: 1px solid var(--divider);
+  padding: 16px 0;
+  margin-top: 32px;
+  
+  @media (max-width: 768px) {
+    position: fixed;
+    bottom: 64px;
+    left: 0;
+    right: 0;
+    padding: 16px;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+  }
+`;
+
+const MobileOptimizedField = styled(TextField)`
+  .MuiInputBase-root {
+    @media (max-width: 768px) {
+      font-size: 16px; /* Prevents zoom on iOS */
+    }
+  }
+`;
+
+const CompressedImageIndicator = styled.div`
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
 `;
 
 const BenefitsContainer = styled.div`
@@ -516,7 +860,7 @@ const UploadPage = () => {
   
   // Step state
   const [activeStep, setActiveStep] = useState(0);
-  const steps = ['Basic Info', 'Visual Preview', 'Details', 'Publish'];
+  const steps = ['Basic Info', 'Preview', 'Publish'];
   
   // Form state
   const [title, setTitle] = useState("");
@@ -555,6 +899,13 @@ const UploadPage = () => {
   
   // Quality score
   const [qualityScore, setQualityScore] = useState(0);
+  
+  // New state for improved UX
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [showPreviewDialog, setShowPreviewDialog] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [compressionEnabled, setCompressionEnabled] = useState(true);
   
   // Category options
   const categoryOptions = [
@@ -672,8 +1023,8 @@ const UploadPage = () => {
       imageUrls, videoUrl, colorScheme, responsive, accessibilityLevel, languageSupport, pricingTier, 
       price, formIsDirty, isAuthenticated, isSubmitting]);
   
-  // Calculate quality score
-  useEffect(() => {
+  // Calculate quality score with detailed requirements
+  const calculateQualityScore = useCallback(() => {
     let score = 0;
     
     // Basic info completeness (40%)
@@ -700,9 +1051,42 @@ const UploadPage = () => {
     if (accessibilityLevel !== "Not Tested") score += 5;
     if (languageSupport !== "English") score += 5;
     
-    setQualityScore(score);
+    return score;
   }, [title, description, category, subCategory, frameworkTools, tags, githubLink, 
       imageUrls, videoUrl, responsive, accessibilityLevel, languageSupport]);
+  
+  // Get missing requirements for quality score
+  const getMissingRequirements = useCallback(() => {
+    const requirements = [];
+    
+    if (!title) requirements.push({ text: "Add a title", completed: false });
+    else if (title.length < 20) requirements.push({ text: "Make title at least 20 characters", completed: false });
+    else requirements.push({ text: "Title added", completed: true });
+    
+    if (!description) requirements.push({ text: "Add a description", completed: false });
+    else if (description.length < 200) requirements.push({ text: "Write 200+ character description", completed: false });
+    else requirements.push({ text: "Description complete", completed: true });
+    
+    if (!category) requirements.push({ text: "Select a category", completed: false });
+    else requirements.push({ text: "Category selected", completed: true });
+    
+    if (imageUrls.length === 0) requirements.push({ text: "Add 3+ preview images", completed: false });
+     else if (imageUrls.length < 3) requirements.push({ text: `Add ${3 - imageUrls.length} more images`, completed: false });
+     else requirements.push({ text: "Preview images added", completed: true });
+     
+     if (tags.length === 0) requirements.push({ text: "Add relevant tags", completed: false });
+     else if (tags.length < 3) requirements.push({ text: `Add ${3 - tags.length} more tags`, completed: false });
+     else requirements.push({ text: "Tags added", completed: true });
+    
+    if (frameworkTools.length === 0) requirements.push({ text: "Select framework/tools", completed: false });
+    else requirements.push({ text: "Framework/tools selected", completed: true });
+    
+    return requirements;
+  }, [title, description, category, imageUrls.length, tags.length, frameworkTools.length]);
+  
+  useEffect(() => {
+    setQualityScore(calculateQualityScore());
+  }, [calculateQualityScore]);
   
   const updateFormDirty = () => {
     setFormIsDirty(true);
@@ -773,13 +1157,73 @@ const UploadPage = () => {
     updateFormDirty();
   };
   
-  // Handle file upload (simulated)
-  const handleFileUpload = () => {
-    // In a real implementation, this would upload the file to a server
-    // and return a URL. For now, we'll simulate with a placeholder URL.
-    const mockImageUrl = `https://source.unsplash.com/random/800x600?sig=${Math.random()}`;
-    setImageUrls([...imageUrls, mockImageUrl]);
+  // Handle file upload with compression
+  const handleFileUpload = async (files) => {
+    const newImageUrls = [];
+    
+    for (const file of files) {
+      try {
+        // Simulate image compression for mobile
+        let processedFile = file;
+        if (compressionEnabled && file.size > 1024 * 1024) { // > 1MB
+          // In a real implementation, you would compress the image here
+          console.log('Compressing image:', file.name);
+        }
+        
+        // Create preview URL for the file
+        const previewUrl = URL.createObjectURL(processedFile);
+        
+        // Simulate upload to server
+        const mockImageUrl = `https://source.unsplash.com/random/800x600?sig=${Math.random()}`;
+        newImageUrls.push(mockImageUrl);
+        
+        // Store file info for later reference
+        setUploadedFiles(prev => [...prev, {
+          file: processedFile,
+          name: processedFile.name,
+          preview: previewUrl,
+          url: mockImageUrl,
+          compressed: compressionEnabled && file.size > 1024 * 1024
+        }]);
+      } catch (error) {
+        console.error('Error uploading file:', error);
+      }
+    }
+    
+    setImageUrls([...imageUrls, ...newImageUrls]);
     updateFormDirty();
+  };
+  
+  // Handle drag and drop
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+  
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+  
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const files = Array.from(e.dataTransfer.files).filter(file => 
+      file.type.startsWith('image/')
+    );
+    
+    if (files.length > 0) {
+      handleFileUpload(files);
+    }
+  };
+  
+  // Handle file input change
+  const handleFileInputChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      handleFileUpload(files);
+    }
   };
   
   // Validate form
@@ -883,45 +1327,70 @@ const UploadPage = () => {
     }
   };
   
-  // Handle next step
+  // Handle next step with improved validation
   const handleNext = () => {
-    // Validate current step
+    // Clear previous errors
+    setErrors({});
     let canProceed = true;
+    const newErrors = {};
     
     if (activeStep === 0) {
-      // Validate basic info
+      // Validate basic info step
       if (!title) {
-        setErrors(prev => ({ ...prev, title: "Title is required" }));
+        newErrors.title = "Title is required";
+        canProceed = false;
+      } else if (title.length < 10) {
+        newErrors.title = "Title must be at least 10 characters";
+        canProceed = false;
+      } else if (title.length > 60) {
+        newErrors.title = "Title must be 60 characters or less";
         canProceed = false;
       }
+      
       if (!category) {
-        setErrors(prev => ({ ...prev, category: "Category is required" }));
+        newErrors.category = "Category is required";
         canProceed = false;
       }
+      
       if (!description) {
-        setErrors(prev => ({ ...prev, description: "Description is required" }));
+        newErrors.description = "Description is required";
         canProceed = false;
       } else if (description.length < 100) {
-        setErrors(prev => ({ ...prev, description: "Description must be at least 100 characters" }));
+        newErrors.description = "Description must be at least 100 characters";
+        canProceed = false;
+      } else if (description.length > 500) {
+        newErrors.description = "Description must be 500 characters or less";
         canProceed = false;
       }
+      
       if (frameworkTools.length === 0) {
-        setErrors(prev => ({ ...prev, frameworkTools: "At least one framework/tool is required" }));
+        newErrors.frameworkTools = "At least one framework/tool is required";
         canProceed = false;
       }
     } else if (activeStep === 1) {
-      // Validate visual preview
+      // Validate preview step
       if (imageUrls.length === 0 && !videoUrl) {
-        setErrors(prev => ({ ...prev, visualPreview: "At least one image or video URL is required" }));
+        newErrors.visualPreview = "At least one image is required before publishing";
+        canProceed = false;
+      }
+      
+      if (tags.length === 0) {
+        newErrors.tags = "At least one tag is required";
+        canProceed = false;
+      } else if (tags.length > 5) {
+        newErrors.tags = "Maximum of 5 tags allowed";
         canProceed = false;
       }
     }
     
-    if (canProceed) {
-      setActiveStep((prevActiveStep) => prevActiveStep + 1);
-      // Auto-save when moving to next step
-      saveDraft();
+    if (!canProceed) {
+      setErrors(newErrors);
+      return;
     }
+    
+    setActiveStep((prevActiveStep) => prevActiveStep + 1);
+    // Auto-save when moving to next step
+    saveDraft();
   };
   
   // Handle back step
@@ -929,19 +1398,37 @@ const UploadPage = () => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
   
-  // Generate description with AI (simulated)
-  const generateDescription = () => {
-    // In a real implementation, this would call an AI service
-    // For now, we'll simulate with a placeholder description
-    const placeholderDescriptions = [
-      `A modern and clean ${category} template designed for ${subCategory || 'various'} applications. This template features a responsive design, intuitive user interface, and customizable components that can be easily adapted to your specific needs.`,
-      `Elevate your ${category} project with this professional template. Carefully crafted with attention to detail, this template offers a seamless user experience across all devices and screen sizes.`,
-      `This ${category} template is perfect for ${subCategory || 'various'} projects. It includes all the essential components and features needed to create a stunning user interface that will impress your clients and users.`
-    ];
+  // Generate description with AI (improved UX)
+  const generateDescription = async () => {
+    if (!category) {
+      setErrors(prev => ({ ...prev, category: "Please select a category first" }));
+      return;
+    }
     
-    const randomDescription = placeholderDescriptions[Math.floor(Math.random() * placeholderDescriptions.length)];
-    setDescription(randomDescription);
-    updateFormDirty();
+    setIsGeneratingDescription(true);
+    
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // In a real implementation, this would call an AI service
+      const placeholderDescriptions = [
+        `A modern and clean ${category} template designed for ${subCategory || 'various'} applications. This template features a responsive design, intuitive user interface, and customizable components that can be easily adapted to your specific needs. Built with ${frameworkTools.join(', ') || 'modern technologies'}, it ensures optimal performance and maintainability.`,
+        `Elevate your ${category} project with this professional template. Carefully crafted with attention to detail, this template offers a seamless user experience across all devices and screen sizes. Perfect for ${subCategory || 'various applications'}, it includes comprehensive documentation and easy customization options.`,
+        `This ${category} template is perfect for ${subCategory || 'various'} projects. It includes all the essential components and features needed to create a stunning user interface that will impress your clients and users. Developed using ${frameworkTools.join(', ') || 'industry-standard tools'}, it follows best practices for accessibility and performance.`
+      ];
+      
+      const randomDescription = placeholderDescriptions[Math.floor(Math.random() * placeholderDescriptions.length)];
+      setDescription(randomDescription);
+      updateFormDirty();
+      
+      // Clear any previous errors
+      setErrors(prev => ({ ...prev, description: undefined }));
+    } catch (error) {
+      console.error('Error generating description:', error);
+    } finally {
+      setIsGeneratingDescription(false);
+    }
   };
   
   // Test GitHub link
@@ -951,7 +1438,7 @@ const UploadPage = () => {
     }
   };
   
-  // Render step content
+  // Render step content with improved UX
   const getStepContent = (step) => {
     switch (step) {
       case 0: // Basic Info
@@ -967,7 +1454,7 @@ const UploadPage = () => {
                 </Grid>
                 
                 <Grid item xs={12}>
-                  <TextField
+                  <MobileOptimizedField
                     label="Template Title"
                     variant="outlined"
                     fullWidth
@@ -975,9 +1462,13 @@ const UploadPage = () => {
                     onChange={(e) => {
                       setTitle(e.target.value);
                       updateFormDirty();
+                      // Clear error when user starts typing
+                      if (errors.title) {
+                        setErrors(prev => ({ ...prev, title: undefined }));
+                      }
                     }}
                     error={!!errors.title}
-                    helperText={errors.title || `${title.length}/60 characters`}
+                    helperText={errors.title}
                     disabled={isSubmitting}
                     required
                     InputProps={{
@@ -996,6 +1487,15 @@ const UploadPage = () => {
                       ),
                     }}
                   />
+                  <CharacterCounter isOver={title.length > 60}>
+                    {title.length}/60 characters
+                  </CharacterCounter>
+                  {errors.title && (
+                    <ValidationError>
+                      <ErrorOutline fontSize="small" />
+                      {errors.title}
+                    </ValidationError>
+                  )}
                 </Grid>
                 
                 <Grid item xs={12} md={6}>
@@ -1006,6 +1506,10 @@ const UploadPage = () => {
                       onChange={(e) => {
                         setCategory(e.target.value);
                         updateFormDirty();
+                        // Clear error when user selects
+                        if (errors.category) {
+                          setErrors(prev => ({ ...prev, category: undefined }));
+                        }
                       }}
                       label="Category"
                       disabled={isSubmitting}
@@ -1051,6 +1555,10 @@ const UploadPage = () => {
                       onChange={(e) => {
                         setFrameworkTools(e.target.value);
                         updateFormDirty();
+                        // Clear error when user selects
+                        if (errors.frameworkTools) {
+                          setErrors(prev => ({ ...prev, frameworkTools: undefined }));
+                        }
                       }}
                       input={<OutlinedInput label="Framework/Tools" />}
                       renderValue={(selected) => (
@@ -1075,7 +1583,7 @@ const UploadPage = () => {
                 </Grid>
                 
                 <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                  <Box sx={{ position: 'relative' }}>
                     <TextField
                       label="Description"
                       variant="outlined"
@@ -1086,9 +1594,12 @@ const UploadPage = () => {
                       onChange={(e) => {
                         setDescription(e.target.value);
                         updateFormDirty();
+                        // Clear error when user types
+                        if (errors.description) {
+                          setErrors(prev => ({ ...prev, description: undefined }));
+                        }
                       }}
                       error={!!errors.description}
-                      helperText={errors.description || `${description.length}/500 characters (minimum 100)`}
                       disabled={isSubmitting}
                       required
                       InputProps={{
@@ -1107,16 +1618,25 @@ const UploadPage = () => {
                         ),
                       }}
                     />
-                    <Tooltip title="Generate a description based on your template details">
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+                      <CharacterCounter 
+                        current={description.length} 
+                        min={100} 
+                        max={500} 
+                      />
                       <Button
                         variant="outlined"
                         onClick={generateDescription}
-                        disabled={!category}
-                        sx={{ minWidth: '180px', height: '56px' }}
+                        disabled={!category || isGeneratingDescription}
+                        startIcon={isGeneratingDescription ? <CircularProgress size={16} /> : null}
+                        sx={{ minWidth: '160px' }}
                       >
-                        Generate Description
+                        {isGeneratingDescription ? 'Generating...' : 'Generate Description'}
                       </Button>
-                    </Tooltip>
+                    </Box>
+                    {errors.description && (
+                      <ValidationError message={errors.description} />
+                    )}
                   </Box>
                 </Grid>
                 
@@ -1140,7 +1660,7 @@ const UploadPage = () => {
           </Fade>
         );
         
-      case 1: // Visual Preview
+      case 1: // Preview
         return (
           <Fade in={activeStep === 1}>
             <StepContent>
@@ -1148,24 +1668,35 @@ const UploadPage = () => {
                 <Grid item xs={12}>
                   <SectionTitle variant="h6">
                     <SectionIcon><Visibility /></SectionIcon>
-                    Visual Preview
+                    Preview & Images
                   </SectionTitle>
+                  <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                    Recommended: 3-5 screenshots showing different views/states
+                  </Typography>
                 </Grid>
                 
-                {errors.visualPreview && (
+                {errors.images && (
                   <Grid item xs={12}>
                     <Alert severity="error">
-                      {errors.visualPreview}
+                      {errors.images}
                     </Alert>
                   </Grid>
                 )}
                 
                 <Grid item xs={12}>
-                  <UploadZone onClick={() => handleFileUpload()}>
+                  <UploadZone 
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    isDragOver={isDragOver}
+                  >
                     <UploadIcon />
-                    <Typography variant="h6" gutterBottom>Drag & Drop Images Here</Typography>
+                    <Typography variant="h6" gutterBottom>
+                      {isDragOver ? 'Drop images here' : 'Drag & Drop Images Here'}
+                    </Typography>
                     <Typography variant="body2" color="textSecondary" gutterBottom>
-                      Or click to browse your files (PNG, JPG, GIF up to 5MB)
+                      Or click to browse your files (PNG, JPG, GIF up to 5MB each)
                     </Typography>
                     <Button
                       variant="contained"
@@ -1181,10 +1712,54 @@ const UploadPage = () => {
                       style={{ display: 'none' }}
                       accept="image/*"
                       multiple
-                      onChange={handleFileUpload}
+                      onChange={handleFileInputChange}
                     />
                   </UploadZone>
                 </Grid>
+                
+                {uploadedFiles.length > 0 && (
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" gutterBottom>
+                      Uploaded Images ({uploadedFiles.length}):
+                    </Typography>
+                    <ImagePreviewContainer>
+                      {uploadedFiles.map((file, index) => (
+                        <Zoom in={true} key={index} style={{ transitionDelay: `${index * 100}ms` }}>
+                          <ImagePreview>
+                            <PreviewImage src={file.preview} alt={`Preview ${index + 1}`} />
+                            <RemoveImageButton
+                              size="small"
+                              onClick={() => {
+                                setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+                                updateFormDirty();
+                              }}
+                              disabled={isSubmitting}
+                            >
+                              <Close fontSize="small" />
+                            </RemoveImageButton>
+                            <Box sx={{ 
+                              position: 'absolute', 
+                              bottom: 0, 
+                              left: 0, 
+                              right: 0, 
+                              bgcolor: 'rgba(0,0,0,0.7)', 
+                              color: 'white', 
+                              p: 0.5, 
+                              fontSize: '0.75rem' 
+                            }}>
+                              {file.name}
+                              {file.compressed && (
+                                <Typography variant="caption" sx={{ display: 'block', color: 'lightgreen' }}>
+                                  ✓ Compressed
+                                </Typography>
+                              )}
+                            </Box>
+                          </ImagePreview>
+                        </Zoom>
+                      ))}
+                    </ImagePreviewContainer>
+                  </Grid>
+                )}
                 
                 <Grid item xs={12}>
                   <Divider sx={{ my: 2 }}>
@@ -1212,12 +1787,12 @@ const UploadPage = () => {
                       Add
                     </Button>
                   </Box>
-                  <FormHelperText>Add multiple screenshots showing different views/states</FormHelperText>
+                  <FormHelperText>Add images via URL as an alternative</FormHelperText>
                 </Grid>
                 
                 {imageUrls.length > 0 && (
                   <Grid item xs={12}>
-                    <Typography variant="subtitle1" gutterBottom>Preview Images:</Typography>
+                    <Typography variant="subtitle1" gutterBottom>URL Images:</Typography>
                     <ImagePreviewContainer>
                       {imageUrls.map((url, index) => (
                         <Zoom in={true} key={index} style={{ transitionDelay: `${index * 100}ms` }}>
@@ -1268,23 +1843,38 @@ const UploadPage = () => {
                 </Grid>
                 
                 <Grid item xs={12}>
-                  <Typography variant="subtitle1" gutterBottom>Template Preview:</Typography>
-                  <Alert severity="info">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="subtitle1">Template Preview:</Typography>
+                    <Button
+                      variant="outlined"
+                      onClick={() => setShowPreviewDialog(true)}
+                      startIcon={<Visibility />}
+                    >
+                      Full Preview
+                    </Button>
+                  </Box>
+                  <Alert severity="info" sx={{ mb: 2 }}>
                     This is how your template will appear in search results and the explore page.
                   </Alert>
-                  <Box sx={{ mt: 2, p: 2, border: '1px solid #eee', borderRadius: '8px' }}>
+                  <Box sx={{ p: 2, border: '1px solid #eee', borderRadius: '8px' }}>
                     <Grid container spacing={2}>
                       <Grid item xs={12} sm={4}>
                         <Box sx={{ 
                           height: '160px', 
                           borderRadius: '8px', 
                           overflow: 'hidden',
-                          bgcolor: imageUrls.length ? 'transparent' : '#f5f5f5',
+                          bgcolor: (uploadedFiles.length || imageUrls.length) ? 'transparent' : '#f5f5f5',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center'
                         }}>
-                          {imageUrls.length ? (
+                          {uploadedFiles.length ? (
+                            <img 
+                              src={uploadedFiles[0].preview} 
+                              alt="Template Preview" 
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                            />
+                          ) : imageUrls.length ? (
                             <img 
                               src={imageUrls[0]} 
                               alt="Template Preview" 
@@ -1322,281 +1912,124 @@ const UploadPage = () => {
           </Fade>
         );
         
-      case 2: // Details
+      case 2: // Publish
         return (
           <Fade in={activeStep === 2}>
             <StepContent>
               <Grid container spacing={3}>
                 <Grid item xs={12}>
                   <SectionTitle variant="h6">
-                    <SectionIcon><LinkIcon /></SectionIcon>
-                    Tags & Keywords
+                    <SectionIcon><AttachMoney /></SectionIcon>
+                    Pricing & Publishing
                   </SectionTitle>
                 </Grid>
                 
+                {/* Pricing Section */}
                 <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'flex-end' }}>
-                    <TextField
-                      label="Tag"
-                      variant="outlined"
-                      fullWidth
-                      value={currentTag}
-                      onChange={(e) => setCurrentTag(e.target.value)}
-                      disabled={isSubmitting || tags.length >= 5}
-                      error={!!errors.tags}
-                      helperText={errors.tags || `${tags.length}/5 tags`}
-                      sx={{ mr: 1 }}
-                      InputProps={{
-                        endAdornment: (
-                          <Tooltip title={
-                            <TooltipContent>
-                              <TooltipTitle>Effective Tags</TooltipTitle>
-                              <TooltipText>
-                                Use tags that potential users might search for. Include technologies, design styles, and use cases.
-                              </TooltipText>
-                            </TooltipContent>
-                          }>
-                            <HelpOutline color="action" style={{ cursor: 'pointer' }} />
-                          </Tooltip>
-                        ),
-                      }}
-                    />
-                    <Button
-                      variant="contained"
-                      onClick={handleAddTag}
-                      disabled={!currentTag || tags.length >= 5 || isSubmitting}
-                      startIcon={<Add />}
-                    >
-                      Add
-                    </Button>
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="subtitle1" gutterBottom>
+                      Choose Your Pricing Model
+                    </Typography>
+                    <FormControl fullWidth disabled={isSubmitting}>
+                      <RadioGroup
+                        value={pricingTier}
+                        onChange={(e) => {
+                          setPricingTier(e.target.value);
+                          updateFormDirty();
+                        }}
+                        row
+                      >
+                        <FormControlLabel 
+                          value="Free" 
+                          control={<Radio />} 
+                          label={
+                            <Box>
+                              <Typography variant="body1">Free</Typography>
+                              <Typography variant="caption" color="textSecondary">
+                                Share with the community
+                              </Typography>
+                            </Box>
+                          }
+                        />
+                        <FormControlLabel 
+                          value="Premium" 
+                          control={<Radio />} 
+                          label={
+                            <Box>
+                              <Typography variant="body1">Premium</Typography>
+                              <Typography variant="caption" color="textSecondary">
+                                Earn 70% of sales revenue
+                              </Typography>
+                            </Box>
+                          }
+                        />
+                      </RadioGroup>
+                    </FormControl>
                   </Box>
                 </Grid>
                 
-                {tags.length > 0 && (
-                  <Grid item xs={12}>
-                    <TagsContainer>
-                      {tags.map((tag, index) => (
-                        <TagChip
-                          key={index}
-                          label={tag}
-                          onDelete={() => handleRemoveTag(tag)}
-                          disabled={isSubmitting}
-                        />
-                      ))}
-                    </TagsContainer>
-                  </Grid>
-                )}
-                
-                <Grid item xs={12} sx={{ mt: 2 }}>
-                  <SectionTitle variant="h6">
-                    <SectionIcon><GitHub /></SectionIcon>
-                    Additional Information
-                  </SectionTitle>
-                </Grid>
-                
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 2 }}>
+                {pricingTier === 'Premium' && (
+                  <Grid item xs={12} sm={6}>
                     <TextField
-                      label="GitHub Link (Optional)"
+                      label="Price (USD)"
                       variant="outlined"
                       fullWidth
-                      value={githubLink}
+                      type="number"
+                      value={price}
                       onChange={(e) => {
-                        setGithubLink(e.target.value);
+                        setPrice(Number(e.target.value));
                         updateFormDirty();
                       }}
                       disabled={isSubmitting}
-                      helperText="Repository with source code/design files"
+                      error={!!errors.price}
+                      helperText={errors.price || "You earn 70% of each sale"}
+                      InputProps={{ 
+                        inputProps: { min: 1, max: 999 },
+                        startAdornment: <AttachMoney fontSize="small" />
+                      }}
                     />
-                    <Button
-                      variant="outlined"
-                      onClick={testGitHubLink}
-                      disabled={!githubLink || isSubmitting}
-                    >
-                      Test Link
-                    </Button>
-                  </Box>
-                </Grid>
+                  </Grid>
+                )}
                 
-                <Grid item xs={12}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={isPrivateRepo}
-                        onChange={(e) => {
-                          setIsPrivateRepo(e.target.checked);
-                          updateFormDirty();
-                        }}
-                        disabled={isSubmitting || !githubLink}
-                      />
-                    }
-                    label="Private Repository"
-                  />
-                </Grid>
-                
-                <Grid item xs={12} sx={{ mt: 2 }}>
-                  <SectionTitle variant="h6">
-                    <SectionIcon><Devices /></SectionIcon>
-                    Design Specifications
-                  </SectionTitle>
-                </Grid>
-                
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth disabled={isSubmitting}>
-                    <InputLabel>Color Scheme</InputLabel>
-                    <Select
-                      value={colorScheme}
-                      onChange={(e) => {
-                        setColorScheme(e.target.value);
-                        updateFormDirty();
-                      }}
-                      label="Color Scheme"
-                    >
-                      {['Light', 'Dark', 'Both', 'Custom'].map((option) => (
-                        <MenuItem key={option} value={option}>
-                          {option}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-                
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth disabled={isSubmitting}>
-                    <InputLabel>Accessibility Level</InputLabel>
-                    <Select
-                      value={accessibilityLevel}
-                      onChange={(e) => {
-                        setAccessibilityLevel(e.target.value);
-                        updateFormDirty();
-                      }}
-                      label="Accessibility Level"
-                    >
-                      {['WCAG AA', 'WCAG AAA', 'Not Tested'].map((option) => (
-                        <MenuItem key={option} value={option}>
-                          {option}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-                
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth disabled={isSubmitting}>
-                    <InputLabel>Language Support</InputLabel>
-                    <Select
-                      value={languageSupport}
-                      onChange={(e) => {
-                        setLanguageSupport(e.target.value);
-                        updateFormDirty();
-                      }}
-                      label="Language Support"
-                    >
-                      {['English', 'Multiple', 'RTL Support'].map((option) => (
-                        <MenuItem key={option} value={option}>
-                          {option}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-                
-                <Grid item xs={12} sm={6}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={responsive}
-                        onChange={(e) => {
-                          setResponsive(e.target.checked);
-                          updateFormDirty();
-                        }}
-                        disabled={isSubmitting}
-                      />
-                    }
-                    label="Responsive Design"
-                  />
-                </Grid>
-              </Grid>
-            </StepContent>
-          </Fade>
-        );
-        
-      case 3: // Publish
-        return (
-          <Fade in={activeStep === 3}>
-            <StepContent>
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <SectionTitle variant="h6">
-                    <SectionIcon><AttachMoney /></SectionIcon>
-                    Pricing
-                  </SectionTitle>
-                </Grid>
-                
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth disabled={isSubmitting}>
-                    <InputLabel>Pricing Tier</InputLabel>
-                    <Select
-                      value={pricingTier}
-                      onChange={(e) => {
-                        setPricingTier(e.target.value);
-                        updateFormDirty();
-                      }}
-                      label="Pricing Tier"
-                    >
-                      {['Free', 'Premium', 'Freemium'].map((option) => (
-                        <MenuItem key={option} value={option}>
-                          {option}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                    <FormHelperText>
-                      {pricingTier === 'Premium' ? 'Users will pay to download your template' : 
-                       pricingTier === 'Freemium' ? 'Basic version free, premium features paid' : 
-                       'Your template will be available for free'}
-                    </FormHelperText>
-                  </FormControl>
-                </Grid>
-                
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    label="Price"
-                    variant="outlined"
-                    fullWidth
-                    type="number"
-                    value={price}
-                    onChange={(e) => {
-                      setPrice(Number(e.target.value));
-                      updateFormDirty();
-                    }}
-                    disabled={isSubmitting || pricingTier !== "Premium"}
-                    error={!!errors.price}
-                    helperText={errors.price || (pricingTier === "Premium" ? "Set your price in USD" : "")}
-                    InputProps={{ 
-                      inputProps: { min: 0 },
-                      startAdornment: pricingTier === "Premium" ? <AttachMoney fontSize="small" /> : null
-                    }}
-                  />
-                </Grid>
-                
-                {pricingTier === "Premium" && (
+                {pricingTier === 'Premium' && price > 0 && (
                   <Grid item xs={12}>
                     <Alert severity="info" sx={{ mb: 2 }}>
-                      <Typography variant="subtitle2">Estimated Earnings</Typography>
+                      <Typography variant="subtitle2">💰 Earnings Calculator</Typography>
                       <Typography variant="body2">
-                        At ${price} per download, you could earn ${price * 10} with just 10 downloads per month.
-                        Premium templates typically see 30-50 downloads monthly.
+                        At ${price} per download:
+                        <br />• 10 downloads/month = ${(price * 10 * 0.7).toFixed(2)} earnings
+                        <br />• 50 downloads/month = ${(price * 50 * 0.7).toFixed(2)} earnings
+                        <br />• Premium templates average 30-50 downloads monthly
                       </Typography>
                     </Alert>
                   </Grid>
                 )}
                 
+                {/* Quality Score Section */}
                 <Grid item xs={12}>
                   <QualityScoreContainer>
-                    <QualityScoreLabel>
-                      Template Quality Score
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <QualityScoreLabel>
+                        Template Quality Score
+                        <Tooltip title={
+                          <TooltipContent>
+                            <TooltipTitle>Quality Score Criteria</TooltipTitle>
+                            <TooltipText>
+                              • Title: 10-60 characters (10 points)
+                              • Description: 100+ characters (20 points)
+                              • Category selected (15 points)
+                              • Framework/tools selected (15 points)
+                              • At least 1 image (20 points)
+                              • 3+ images (10 points)
+                              • Tags added (10 points)
+                            </TooltipText>
+                          </TooltipContent>
+                        }>
+                          <HelpOutline fontSize="small" sx={{ ml: 1, cursor: 'pointer' }} />
+                        </Tooltip>
+                      </QualityScoreLabel>
                       <QualityScoreValue score={qualityScore}>{qualityScore}%</QualityScoreValue>
-                    </QualityScoreLabel>
+                    </Box>
                     <LinearProgress 
                       variant="determinate" 
                       value={qualityScore} 
@@ -1610,19 +2043,150 @@ const UploadPage = () => {
                         }
                       }} 
                     />
-                    <Typography variant="body2" sx={{ mt: 1 }}>
-                      {qualityScore >= 80 ? 'Excellent! Your template is ready for submission.' : 
-                       qualityScore >= 50 ? 'Good start! Consider adding more details to improve your score.' : 
-                       'Your template needs more information to stand out. Complete more fields to improve.'}
-                    </Typography>
+                    <Box sx={{ mt: 1 }}>
+                      {qualityScore >= 80 ? (
+                        <Typography variant="body2" color="success.main">
+                          ✅ Excellent! Your template is ready for submission.
+                        </Typography>
+                      ) : (
+                        <Box>
+                          <Typography variant="body2" color={qualityScore >= 50 ? 'warning.main' : 'error.main'}>
+                            {qualityScore >= 50 ? '⚠️ Good start! ' : '❌ Needs improvement: '}
+                            Missing requirements:
+                          </Typography>
+                          <Box component="ul" sx={{ mt: 1, pl: 2 }}>
+                            {getMissingRequirements().map((req, index) => (
+                              <Typography key={index} component="li" variant="body2" color="text.secondary">
+                                {req}
+                              </Typography>
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
                   </QualityScoreContainer>
                 </Grid>
                 
+                {/* Tags Section */}
+                <Grid item xs={12}>
+                  <Typography variant="subtitle1" gutterBottom>
+                    Tags & Keywords
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'flex-end' }}>
+                    <TextField
+                      label="Add Tag"
+                      variant="outlined"
+                      fullWidth
+                      value={currentTag}
+                      onChange={(e) => setCurrentTag(e.target.value)}
+                      disabled={isSubmitting || tags.length >= 5}
+                      error={!!errors.tags}
+                      helperText={errors.tags || `${tags.length}/5 tags`}
+                      sx={{ mr: 1 }}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && currentTag && tags.length < 5) {
+                          handleAddTag();
+                        }
+                      }}
+                    />
+                    <Button
+                      variant="contained"
+                      onClick={handleAddTag}
+                      disabled={!currentTag || tags.length >= 5 || isSubmitting}
+                      startIcon={<Add />}
+                    >
+                      Add
+                    </Button>
+                  </Box>
+                  {tags.length > 0 && (
+                    <TagsContainer sx={{ mt: 2 }}>
+                      {tags.map((tag, index) => (
+                        <TagChip
+                          key={index}
+                          label={tag}
+                          onDelete={() => handleRemoveTag(tag)}
+                          disabled={isSubmitting}
+                        />
+                      ))}
+                    </TagsContainer>
+                  )}
+                </Grid>
+                
+                {/* Publish Checklist */}
+                <Grid item xs={12}>
+                  <Typography variant="subtitle1" gutterBottom>
+                    📋 Pre-Publish Checklist
+                  </Typography>
+                  <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e0e0e0' }}>
+                    <Grid container spacing={1}>
+                      <Grid item xs={12} sm={6}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          {(uploadedFiles.length > 0 || imageUrls.length > 0) ? 
+                            <CheckCircle color="success" sx={{ mr: 1 }} /> : 
+                            <RadioButtonUnchecked color="disabled" sx={{ mr: 1 }} />
+                          }
+                          <Typography variant="body2">
+                            Images uploaded ({uploadedFiles.length + imageUrls.length})
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          {description.length >= 100 ? 
+                            <CheckCircle color="success" sx={{ mr: 1 }} /> : 
+                            <RadioButtonUnchecked color="disabled" sx={{ mr: 1 }} />
+                          }
+                          <Typography variant="body2">
+                            Description complete (100+ chars)
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          {pricingTier ? 
+                            <CheckCircle color="success" sx={{ mr: 1 }} /> : 
+                            <RadioButtonUnchecked color="disabled" sx={{ mr: 1 }} />
+                          }
+                          <Typography variant="body2">
+                            Pricing set
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          {title.length >= 10 ? 
+                            <CheckCircle color="success" sx={{ mr: 1 }} /> : 
+                            <RadioButtonUnchecked color="disabled" sx={{ mr: 1 }} />
+                          }
+                          <Typography variant="body2">
+                            Title complete (10+ chars)
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          {category ? 
+                            <CheckCircle color="success" sx={{ mr: 1 }} /> : 
+                            <RadioButtonUnchecked color="disabled" sx={{ mr: 1 }} />
+                          }
+                          <Typography variant="body2">
+                            Category selected
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          {frameworkTools.length > 0 ? 
+                            <CheckCircle color="success" sx={{ mr: 1 }} /> : 
+                            <RadioButtonUnchecked color="disabled" sx={{ mr: 1 }} />
+                          }
+                          <Typography variant="body2">
+                            Framework/tools selected
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </Box>
+                </Grid>
+                
+                {/* Benefits Section */}
                 <Grid item xs={12}>
                   <BenefitsContainer>
                     <Typography variant="h6" sx={{ mb: 2 }}>
                       <Celebration color="primary" sx={{ mr: 1, verticalAlign: 'middle' }} />
-                      Benefits of Sharing Your Template
+                      Your Template Will Reach 500k+ Developers
                     </Typography>
                     
                     <Grid container spacing={2}>
@@ -1630,7 +2194,7 @@ const UploadPage = () => {
                         <BenefitItem>
                           <Star color="primary" />
                           <Typography variant="subtitle1">Gain Recognition</Typography>
-                          <Typography variant="body2">Showcase your skills to thousands of developers</Typography>
+                          <Typography variant="body2">Showcase your skills to thousands of developers worldwide</Typography>
                         </BenefitItem>
                       </Grid>
                       
@@ -1638,7 +2202,12 @@ const UploadPage = () => {
                         <BenefitItem>
                           <AttachMoney color="primary" />
                           <Typography variant="subtitle1">Earn Revenue</Typography>
-                          <Typography variant="body2">Premium templates can generate passive income</Typography>
+                          <Typography variant="body2">
+                            {pricingTier === 'Premium' ? 
+                              `Earn up to $${(price * 50 * 0.7).toFixed(0)}/month` : 
+                              'Build your reputation for future premium templates'
+                            }
+                          </Typography>
                         </BenefitItem>
                       </Grid>
                       
@@ -1653,6 +2222,7 @@ const UploadPage = () => {
                   </BenefitsContainer>
                 </Grid>
                 
+                {/* Submit Button */}
                 <Grid item xs={12} sx={{ mt: 3 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'center' }}>
                     <SubmitButton
@@ -1660,17 +2230,24 @@ const UploadPage = () => {
                       color="primary"
                       size="large"
                       onClick={handleSubmit}
-                      disabled={isSubmitting || !isAuthenticated}
-                      startIcon={<CloudUpload />}
+                      disabled={isSubmitting || !isAuthenticated || qualityScore < 50}
+                      startIcon={isSubmitting ? <CircularProgress size={20} /> : <CloudUpload />}
                     >
                       {isSubmitting ? 'Publishing...' : 'Publish Your Template'}
                     </SubmitButton>
                   </Box>
+                  {qualityScore < 50 && (
+                    <Typography variant="body2" color="error" align="center" sx={{ mt: 1 }}>
+                      Complete more requirements to enable publishing
+                    </Typography>
+                  )}
                 </Grid>
               </Grid>
             </StepContent>
           </Fade>
         );
+        
+
       default:
         return null;
     }

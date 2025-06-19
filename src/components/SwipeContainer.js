@@ -17,6 +17,12 @@ const Container = styled.div`
   margin: 0 auto;
   position: relative;
   padding: 16px;
+  padding-top: 80px; /* Account for fixed header */
+  
+  @media (max-width: 768px) {
+    padding-top: 80px; /* Account for fixed header on mobile */
+    padding-bottom: 80px; /* Account for mobile navigation */
+  }
 `;
 
 const CardContainer = styled.div`

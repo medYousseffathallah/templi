@@ -16,10 +16,18 @@ const HeaderContainer = styled.div`
   background-color: var(--background-paper);
   margin-left: 240px; /* Space for sidebar */
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   
   @media (max-width: 768px) {
     margin-left: 0;
     padding: 12px 16px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
   }
 `;
 

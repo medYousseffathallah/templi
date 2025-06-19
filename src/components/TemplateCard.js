@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
 import { Close, Star, Favorite, Info } from "@mui/icons-material";
 
@@ -9,15 +9,24 @@ const Card = styled.div`
   max-width: 400px;
   height: 600px;
   border-radius: var(--borderRadius-large);
-  background-size: cover;
-  background-position: center;
   box-shadow: var(--shadows-card);
   overflow: hidden;
-  transition: transform 0.3s ease, filter 0.3s ease;
+  transition: transform 0.3s ease;
   
   &:hover {
     transform: translateY(-5px);
   }
+`;
+
+const CardBackground = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: cover;
+  background-position: center;
+  transition: filter 0.3s ease;
 `;
 
 const CardOverlay = styled.div`
@@ -502,9 +511,7 @@ const TemplateCard = ({
     <Card
       ref={cardRef}
       style={{
-        backgroundImage: `url(${template.imageUrl})`,
         transform: `translateX(${cardTransform.x}px) rotate(${cardTransform.rotate}deg)`,
-        filter: `blur(${cardTransform.blur}px)`,
         ...style,
       }}
       onTouchStart={onTouchStart}
@@ -520,6 +527,12 @@ const TemplateCard = ({
       aria-label={`Template: ${template.title}. Use arrow keys to like or dislike.`}
       role="button"
     >
+      <CardBackground 
+        style={{
+          backgroundImage: `url(${template.imageUrl})`,
+          filter: `blur(${cardTransform.blur}px)`,
+        }}
+      />
       <CardOverlay />
       
       {/* Directional overlays */}
