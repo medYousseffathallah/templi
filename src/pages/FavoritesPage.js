@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 const FavoritesContainer = styled.div`
   padding: 24px;
   margin-left: 240px; /* Space for sidebar */
+  margin-top: 64px; /* Space for fixed header */
   max-width: 1400px;
   min-height: calc(100vh - 64px);
   background-color: var(--background-default);
@@ -24,10 +25,20 @@ const FavoritesContainer = styled.div`
 
 const Title = styled.h1`
   font-size: 32px;
-  margin-bottom: 8px;
-  color: var(--text-primary);
   font-weight: 700;
+  margin-bottom: 32px;
+  color: var(--text-primary);
+  background: linear-gradient(135deg, var(--secondary-main), var(--primary-main));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  
+  @media (max-width: 768px) {
+    font-size: 28px;
+    margin-bottom: 24px;
+  }
 `;
+
 
 const Subtitle = styled.p`
   font-size: 16px;

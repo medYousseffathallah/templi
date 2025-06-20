@@ -5,6 +5,7 @@ import { templateApi } from "../services/api";
 const TrendingContainer = styled.div`
   padding: 24px;
   margin-left: 240px; /* Space for sidebar */
+  margin-top: 64px; /* Space for fixed header */
   max-width: 1400px;
   min-height: calc(100vh - 64px);
   background-color: var(--background-default);

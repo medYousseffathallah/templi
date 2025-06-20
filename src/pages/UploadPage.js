@@ -3,6 +3,7 @@ import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 import { templateApi } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { supabase } from '../lib/supabase';
 import {
   TextField,
   Button,
@@ -22,6 +23,7 @@ import {
   Alert,
   IconButton,
   OutlinedInput,
+  InputAdornment,
   Checkbox,
   ListItemText,
   Tooltip,
@@ -80,6 +82,7 @@ import {
   CheckBoxOutlineBlank,
   RadioButtonUnchecked,
   ErrorOutline,
+  Settings,
 } from "@mui/icons-material";
 
 const PageContainer = styled.div`
@@ -301,7 +304,7 @@ const ImagePreview = styled.div`
   width: 150px;
   height: 150px;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--divider);
   transition: all 0.3s ease;
   
@@ -645,6 +648,237 @@ const GenerateButton = styled(Button)`
   }
 `;
 
+const FullPreviewWrapper = styled.div`
+  position: relative;
+  width: 100%;
+  height: 70vh;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+`;
+
+const PreviewMedia = styled.div`
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  img, video {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+`;
+
+const NavigationButton = styled(IconButton)`
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  color: white !important;
+  z-index: 1000;
+  width: 50px;
+  height: 50px;
+  
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.9) !important;
+  }
+  
+  &.left {
+    left: 20px;
+  }
+  
+  &.right {
+    right: 20px;
+  }
+`;
+
+const MediaCounter = styled.div`
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+`;
+
+// Full Preview Container Component
+const FullPreviewContainer = ({ uploadedFiles, open, onClose }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  
+  console.log('FullPreviewContainer rendered:', { uploadedFiles: uploadedFiles?.length, open, filesLength: uploadedFiles?.length });
+  
+  useEffect(() => {
+    console.log('FullPreviewContainer open state changed:', open);
+  }, [open]);
+  
+  const handlePrevious = () => {
+    if (!uploadedFiles || uploadedFiles.length === 0) return;
+    setCurrentIndex(prev => prev > 0 ? prev - 1 : uploadedFiles.length - 1);
+  };
+  
+  const handleNext = () => {
+    if (!uploadedFiles || uploadedFiles.length === 0) return;
+    setCurrentIndex(prev => prev < uploadedFiles.length - 1 ? prev + 1 : 0);
+  };
+  
+  const handleKeyPress = useCallback((event) => {
+    if (event.key === 'ArrowLeft') {
+      handlePrevious();
+    } else if (event.key === 'ArrowRight') {
+      handleNext();
+    } else if (event.key === 'Escape') {
+      onClose();
+    }
+  }, [onClose]);
+  
+  useEffect(() => {
+    if (open) {
+      document.addEventListener('keydown', handleKeyPress);
+      return () => {
+        document.removeEventListener('keydown', handleKeyPress);
+      };
+    }
+  }, [handleKeyPress, open]);
+  
+  // Reset to first image when dialog opens
+  useEffect(() => {
+    if (open) {
+      setCurrentIndex(0);
+    }
+  }, [open]);
+  
+  // Don't render anything if dialog is not open
+  if (!open) {
+    return null;
+  }
+  
+  if (!uploadedFiles || uploadedFiles.length === 0) {
+    return (
+      <Dialog
+        open={open}
+        onClose={onClose}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          style: {
+            backgroundColor: '#000',
+            color: 'white'
+          }
+        }}
+      >
+        <DialogContent>
+          <FullPreviewWrapper>
+            <Typography color="white" variant="h6">
+              No files to preview
+            </Typography>
+          </FullPreviewWrapper>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+  
+  const currentFile = uploadedFiles[currentIndex];
+  
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth={false}
+      fullScreen
+      PaperProps={{
+        style: {
+          backgroundColor: '#000',
+          margin: 0,
+          maxHeight: '100vh',
+          maxWidth: '100vw'
+        }
+      }}
+    >
+      <DialogContent style={{ padding: 0, position: 'relative' }}>
+        <FullPreviewWrapper>
+          {/* Close Button */}
+          <IconButton
+            onClick={onClose}
+            style={{
+              position: 'absolute',
+              top: 20,
+              right: 20,
+              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+              color: 'white',
+              zIndex: 1001
+            }}
+          >
+            <Close />
+          </IconButton>
+          
+          <PreviewMedia>
+            {currentFile.file.type.startsWith('video/') ? (
+              <video
+                key={currentIndex} // Force re-render for autoplay
+                src={currentFile.preview}
+                autoPlay
+                muted
+                controls
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+              />
+            ) : (
+              <img
+                src={currentFile.preview}
+                alt={`Preview ${currentIndex + 1}`}
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+              />
+            )}
+          </PreviewMedia>
+          
+          {uploadedFiles.length > 1 && (
+            <>
+              <NavigationButton className="left" onClick={handlePrevious}>
+                <NavigateBefore />
+              </NavigationButton>
+              
+              <NavigationButton className="right" onClick={handleNext}>
+                <NavigateNext />
+              </NavigationButton>
+              
+              <MediaCounter>
+                {currentIndex + 1} / {uploadedFiles.length}
+              </MediaCounter>
+            </>
+          )}
+          
+          {/* File Info */}
+          <Box
+            style={{
+              position: 'absolute',
+              top: 20,
+              left: 20,
+              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              zIndex: 1000
+            }}
+          >
+            <Typography variant="body2">
+              {currentFile.name}
+            </Typography>
+            <Typography variant="caption">
+              {currentFile.file.type.startsWith('video/') ? 'Video' : 'Image'} • {(currentFile.file.size / 1024 / 1024).toFixed(2)} MB
+            </Typography>
+          </Box>
+        </FullPreviewWrapper>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const BenefitsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -860,7 +1094,7 @@ const UploadPage = () => {
   
   // Step state
   const [activeStep, setActiveStep] = useState(0);
-  const steps = ['Basic Info', 'Preview', 'Publish'];
+  const steps = ['Basic Info', 'Preview', 'Details', 'Publish'];
   
   // Form state
   const [title, setTitle] = useState("");
@@ -870,11 +1104,11 @@ const UploadPage = () => {
   const [frameworkTools, setFrameworkTools] = useState([]);
   const [tags, setTags] = useState([]);
   const [currentTag, setCurrentTag] = useState("");
+  const [tagInput, setTagInput] = useState("");
   const [githubLink, setGithubLink] = useState("");
   const [isPrivateRepo, setIsPrivateRepo] = useState(false);
-  const [imageUrls, setImageUrls] = useState([]);
-  const [currentImageUrl, setCurrentImageUrl] = useState("");
-  const [videoUrl, setVideoUrl] = useState("");
+
+
   
   // Design specifications
   const [colorScheme, setColorScheme] = useState("Light");
@@ -993,8 +1227,8 @@ const UploadPage = () => {
           setTags(draft.tags || []);
           setGithubLink(draft.githubLink || "");
           setIsPrivateRepo(draft.isPrivateRepo || false);
-          setImageUrls(draft.imageUrls || []);
-          setVideoUrl(draft.videoUrl || "");
+    
+
           setColorScheme(draft.colorScheme || "Light");
           setResponsive(draft.responsive !== undefined ? draft.responsive : true);
           setAccessibilityLevel(draft.accessibilityLevel || "Not Tested");
@@ -1020,7 +1254,7 @@ const UploadPage = () => {
       return () => clearTimeout(autosaveTimer);
     }
   }, [title, description, category, subCategory, frameworkTools, tags, githubLink, isPrivateRepo, 
-      imageUrls, videoUrl, colorScheme, responsive, accessibilityLevel, languageSupport, pricingTier, 
+      colorScheme, responsive, accessibilityLevel, languageSupport, pricingTier, 
       price, formIsDirty, isAuthenticated, isSubmitting]);
   
   // Calculate quality score with detailed requirements
@@ -1037,9 +1271,9 @@ const UploadPage = () => {
     if (frameworkTools.length > 0) score += 5;
     
     // Visual assets (30%)
-    if (imageUrls.length > 0) score += 10;
-    if (imageUrls.length >= 3) score += 10;
-    if (videoUrl) score += 10;
+    if (uploadedFiles.length > 0) score += 10;
+    if (uploadedFiles.length >= 3) score += 10;
+
     
     // Additional details (20%)
     if (tags.length > 0) score += 5;
@@ -1052,8 +1286,8 @@ const UploadPage = () => {
     if (languageSupport !== "English") score += 5;
     
     return score;
-  }, [title, description, category, subCategory, frameworkTools, tags, githubLink, 
-      imageUrls, videoUrl, responsive, accessibilityLevel, languageSupport]);
+  }, [title, description, category, frameworkTools, tags, githubLink, 
+      uploadedFiles, responsive, accessibilityLevel, languageSupport]);
   
   // Get missing requirements for quality score
   const getMissingRequirements = useCallback(() => {
@@ -1070,8 +1304,8 @@ const UploadPage = () => {
     if (!category) requirements.push({ text: "Select a category", completed: false });
     else requirements.push({ text: "Category selected", completed: true });
     
-    if (imageUrls.length === 0) requirements.push({ text: "Add 3+ preview images", completed: false });
-     else if (imageUrls.length < 3) requirements.push({ text: `Add ${3 - imageUrls.length} more images`, completed: false });
+    if (uploadedFiles.length === 0) requirements.push({ text: "Add 3+ preview files", completed: false });
+    else if (uploadedFiles.length < 3) requirements.push({ text: `Add ${3 - uploadedFiles.length} more files`, completed: false });
      else requirements.push({ text: "Preview images added", completed: true });
      
      if (tags.length === 0) requirements.push({ text: "Add relevant tags", completed: false });
@@ -1082,7 +1316,7 @@ const UploadPage = () => {
     else requirements.push({ text: "Framework/tools selected", completed: true });
     
     return requirements;
-  }, [title, description, category, imageUrls.length, tags.length, frameworkTools.length]);
+  }, [title, description, category, uploadedFiles.length, tags.length, frameworkTools.length]);
   
   useEffect(() => {
     setQualityScore(calculateQualityScore());
@@ -1107,8 +1341,8 @@ const UploadPage = () => {
       tags,
       githubLink,
       isPrivateRepo,
-      imageUrls,
-      videoUrl,
+
+
       colorScheme,
       responsive,
       accessibilityLevel,
@@ -1142,47 +1376,27 @@ const UploadPage = () => {
     updateFormDirty();
   };
   
-  // Add an image URL
-  const handleAddImageUrl = () => {
-    if (currentImageUrl && !imageUrls.includes(currentImageUrl)) {
-      setImageUrls([...imageUrls, currentImageUrl]);
-      setCurrentImageUrl("");
-      updateFormDirty();
-    }
-  };
-  
-  // Remove an image URL
-  const handleRemoveImageUrl = (urlToRemove) => {
-    setImageUrls(imageUrls.filter(url => url !== urlToRemove));
-    updateFormDirty();
-  };
+
   
   // Handle file upload with compression
   const handleFileUpload = async (files) => {
-    const newImageUrls = [];
-    
     for (const file of files) {
       try {
         // Simulate image compression for mobile
         let processedFile = file;
         if (compressionEnabled && file.size > 1024 * 1024) { // > 1MB
           // In a real implementation, you would compress the image here
-          console.log('Compressing image:', file.name);
+          console.log('Compressing file:', file.name);
         }
         
         // Create preview URL for the file
         const previewUrl = URL.createObjectURL(processedFile);
-        
-        // Simulate upload to server
-        const mockImageUrl = `https://source.unsplash.com/random/800x600?sig=${Math.random()}`;
-        newImageUrls.push(mockImageUrl);
         
         // Store file info for later reference
         setUploadedFiles(prev => [...prev, {
           file: processedFile,
           name: processedFile.name,
           preview: previewUrl,
-          url: mockImageUrl,
           compressed: compressionEnabled && file.size > 1024 * 1024
         }]);
       } catch (error) {
@@ -1190,7 +1404,6 @@ const UploadPage = () => {
       }
     }
     
-    setImageUrls([...imageUrls, ...newImageUrls]);
     updateFormDirty();
   };
   
@@ -1210,7 +1423,7 @@ const UploadPage = () => {
     setIsDragOver(false);
     
     const files = Array.from(e.dataTransfer.files).filter(file => 
-      file.type.startsWith('image/')
+      file.type.startsWith('image/') || file.type.startsWith('video/')
     );
     
     if (files.length > 0) {
@@ -1242,8 +1455,8 @@ const UploadPage = () => {
     
     if (frameworkTools.length === 0) newErrors.frameworkTools = "At least one framework/tool is required";
     
-    if (imageUrls.length === 0 && !videoUrl) {
-      newErrors.visualPreview = "At least one image or video URL is required";
+    if (uploadedFiles.length === 0) {
+      newErrors.visualPreview = "At least one file is required";
     }
     
     if (tags.length > 5) newErrors.tags = "Maximum of 5 tags allowed";
@@ -1256,6 +1469,49 @@ const UploadPage = () => {
     return Object.keys(newErrors).length === 0;
   };
   
+  // Upload files to Supabase Storage
+  const uploadFilesToSupabase = async (files) => {
+    const imageUrls = [];
+    let videoUrl = null;
+    
+    for (const fileObj of files) {
+      const file = fileObj.file;
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `templates/${fileName}`;
+      
+      try {
+        // Upload file to Supabase Storage
+        const { data, error } = await supabase.storage
+          .from('uploads')
+          .upload(filePath, file);
+        
+        if (error) {
+          console.error('Upload error:', error);
+          throw error;
+        }
+        
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('uploads')
+          .getPublicUrl(filePath);
+        
+        // Categorize by file type
+        if (file.type.startsWith('video/')) {
+          videoUrl = publicUrl;
+        } else if (file.type.startsWith('image/')) {
+          imageUrls.push(publicUrl);
+        }
+        
+      } catch (error) {
+        console.error('Failed to upload file:', file.name, error);
+        throw new Error(`Failed to upload ${file.name}`);
+      }
+    }
+    
+    return { imageUrls, videoUrl };
+  };
+
   // Handle form submission
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -1283,11 +1539,14 @@ const UploadPage = () => {
     setSubmitError("");
     
     try {
+      // Upload files to Supabase Storage first
+      const { imageUrls, videoUrl } = await uploadFilesToSupabase(uploadedFiles);
+      
       const templateData = {
         title,
         description,
-        imageUrls,
-        videoUrl,
+        imageUrls, // Now includes actual URLs from Supabase
+        videoUrl,  // Now includes actual URL from Supabase
         tags,
         category,
         subCategory,
@@ -1321,7 +1580,7 @@ const UploadPage = () => {
       
     } catch (error) {
       console.error("Error submitting template:", error);
-      setSubmitError(error.response?.data?.message || "Failed to submit template. Please try again.");
+      setSubmitError(error.message || "Failed to submit template. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -1329,6 +1588,9 @@ const UploadPage = () => {
   
   // Handle next step with improved validation
   const handleNext = () => {
+    console.log('handleNext called, activeStep:', activeStep);
+    console.log('Current form state:', { title, category, description, frameworkTools, uploadedFiles, tags, pricingTier, price, githubLink, qualityScore });
+    
     // Clear previous errors
     setErrors({});
     let canProceed = true;
@@ -1369,11 +1631,12 @@ const UploadPage = () => {
       }
     } else if (activeStep === 1) {
       // Validate preview step
-      if (imageUrls.length === 0 && !videoUrl) {
-        newErrors.visualPreview = "At least one image is required before publishing";
+      if (uploadedFiles.length === 0) {
+        newErrors.images = "At least one file is required before publishing";
         canProceed = false;
       }
-      
+    } else if (activeStep === 2) {
+      // Validate details step
       if (tags.length === 0) {
         newErrors.tags = "At least one tag is required";
         canProceed = false;
@@ -1381,14 +1644,44 @@ const UploadPage = () => {
         newErrors.tags = "Maximum of 5 tags allowed";
         canProceed = false;
       }
+      
+      if (!pricingTier) {
+        newErrors.pricingTier = "Please select a pricing model";
+        canProceed = false;
+      }
+      
+      if (pricingTier === 'Premium' && (!price || price <= 0)) {
+        newErrors.price = "Price must be greater than 0 for premium templates";
+        canProceed = false;
+      }
+      
+      if (githubLink && !githubLink.match(/^https?:\/\/(www\.)?github\.com\/.+\/.+/)) {
+        newErrors.githubLink = "Please enter a valid GitHub repository URL";
+        canProceed = false;
+      }
+    } else if (activeStep === 3) {
+      // Validate final publish step
+      if (qualityScore < 50) {
+        newErrors.general = "Please complete more requirements to reach minimum quality score (50%)";
+        canProceed = false;
+      }
     }
     
     if (!canProceed) {
+      console.log('Validation failed, errors:', newErrors);
+      console.log('Detailed validation check:');
+      console.log('- uploadedFiles.length:', uploadedFiles.length);
+      console.log('- tags.length:', tags.length);
+      console.log('- tags:', tags);
       setErrors(newErrors);
       return;
     }
     
-    setActiveStep((prevActiveStep) => prevActiveStep + 1);
+    console.log('Validation passed, moving to next step');
+    setActiveStep((prevActiveStep) => {
+      console.log('Previous step:', prevActiveStep, 'Next step:', prevActiveStep + 1);
+      return prevActiveStep + 1;
+    });
     // Auto-save when moving to next step
     saveDraft();
   };
@@ -1496,6 +1789,13 @@ const UploadPage = () => {
                       {errors.title}
                     </ValidationError>
                   )}
+        
+        {/* Full Preview Dialog */}
+        <FullPreviewContainer 
+          uploadedFiles={uploadedFiles} 
+          open={showPreviewDialog}
+          onClose={() => setShowPreviewDialog(false)}
+        />
                 </Grid>
                 
                 <Grid item xs={12} md={6}>
@@ -1693,10 +1993,10 @@ const UploadPage = () => {
                   >
                     <UploadIcon />
                     <Typography variant="h6" gutterBottom>
-                      {isDragOver ? 'Drop images here' : 'Drag & Drop Images Here'}
+                      {isDragOver ? 'Drop files here' : 'Drag & Drop Images or Videos Here'}
                     </Typography>
                     <Typography variant="body2" color="textSecondary" gutterBottom>
-                      Or click to browse your files (PNG, JPG, GIF up to 5MB each)
+                      Or click to browse your files (Images: PNG, JPG, GIF | Videos: MP4, MOV up to 5MB each)
                     </Typography>
                     <Button
                       variant="contained"
@@ -1704,13 +2004,13 @@ const UploadPage = () => {
                       sx={{ mt: 2 }}
                       disabled={isSubmitting}
                     >
-                      Upload Images
+                      Upload Files
                     </Button>
                     <input
                       type="file"
                       ref={fileInputRef}
                       style={{ display: 'none' }}
-                      accept="image/*"
+                      accept="image/*,video/*"
                       multiple
                       onChange={handleFileInputChange}
                     />
@@ -1720,13 +2020,22 @@ const UploadPage = () => {
                 {uploadedFiles.length > 0 && (
                   <Grid item xs={12}>
                     <Typography variant="subtitle1" gutterBottom>
-                      Uploaded Images ({uploadedFiles.length}):
+                      Uploaded Files ({uploadedFiles.length}):
                     </Typography>
                     <ImagePreviewContainer>
                       {uploadedFiles.map((file, index) => (
                         <Zoom in={true} key={index} style={{ transitionDelay: `${index * 100}ms` }}>
                           <ImagePreview>
-                            <PreviewImage src={file.preview} alt={`Preview ${index + 1}`} />
+                            {file.file.type.startsWith('video/') ? (
+                              <video 
+                                src={file.preview} 
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
+                                muted
+                                controls={false}
+                              />
+                            ) : (
+                              <PreviewImage src={file.preview} alt={`Preview ${index + 1}`} style={{ borderRadius: '8px' }} />
+                            )}
                             <RemoveImageButton
                               size="small"
                               onClick={() => {
@@ -1761,94 +2070,23 @@ const UploadPage = () => {
                   </Grid>
                 )}
                 
-                <Grid item xs={12}>
-                  <Divider sx={{ my: 2 }}>
-                    <Chip label="OR" />
-                  </Divider>
-                </Grid>
+
                 
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'flex-end' }}>
-                    <TextField
-                      label="Image URL"
-                      variant="outlined"
-                      fullWidth
-                      value={currentImageUrl}
-                      onChange={(e) => setCurrentImageUrl(e.target.value)}
-                      disabled={isSubmitting}
-                      sx={{ mr: 1 }}
-                    />
-                    <Button
-                      variant="contained"
-                      onClick={handleAddImageUrl}
-                      disabled={!currentImageUrl || isSubmitting}
-                      startIcon={<Add />}
-                    >
-                      Add
-                    </Button>
-                  </Box>
-                  <FormHelperText>Add images via URL as an alternative</FormHelperText>
-                </Grid>
-                
-                {imageUrls.length > 0 && (
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle1" gutterBottom>URL Images:</Typography>
-                    <ImagePreviewContainer>
-                      {imageUrls.map((url, index) => (
-                        <Zoom in={true} key={index} style={{ transitionDelay: `${index * 100}ms` }}>
-                          <ImagePreview>
-                            <PreviewImage src={url} alt={`Preview ${index + 1}`} />
-                            <RemoveImageButton
-                              size="small"
-                              onClick={() => handleRemoveImageUrl(url)}
-                              disabled={isSubmitting}
-                            >
-                              <Close fontSize="small" />
-                            </RemoveImageButton>
-                          </ImagePreview>
-                        </Zoom>
-                      ))}
-                    </ImagePreviewContainer>
-                  </Grid>
-                )}
-                
-                <Grid item xs={12}>
-                  <TextField
-                    label="Video URL (Optional)"
-                    variant="outlined"
-                    fullWidth
-                    value={videoUrl}
-                    onChange={(e) => {
-                      setVideoUrl(e.target.value);
-                      updateFormDirty();
-                    }}
-                    disabled={isSubmitting}
-                    helperText="Add a video showcase (maximum 60 seconds)"
-                    InputProps={{
-                      endAdornment: (
-                        <Tooltip title={
-                          <TooltipContent>
-                            <TooltipTitle>Video Showcase Tips</TooltipTitle>
-                            <TooltipText>
-                              A short video demonstration can significantly increase interest in your template.
-                              Keep it under 60 seconds and focus on key features and interactions.
-                            </TooltipText>
-                          </TooltipContent>
-                        }>
-                          <HelpOutline color="action" style={{ cursor: 'pointer' }} />
-                        </Tooltip>
-                      ),
-                    }}
-                  />
-                </Grid>
+
                 
                 <Grid item xs={12}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="subtitle1">Template Preview:</Typography>
                     <Button
                       variant="outlined"
-                      onClick={() => setShowPreviewDialog(true)}
+                      onClick={() => {
+                        console.log('Full Preview clicked, uploadedFiles:', uploadedFiles);
+                        console.log('Setting showPreviewDialog to true');
+                        setShowPreviewDialog(true);
+                        console.log('showPreviewDialog state should now be true');
+                      }}
                       startIcon={<Visibility />}
+                      disabled={!uploadedFiles || uploadedFiles.length === 0}
                     >
                       Full Preview
                     </Button>
@@ -1863,25 +2101,28 @@ const UploadPage = () => {
                           height: '160px', 
                           borderRadius: '8px', 
                           overflow: 'hidden',
-                          bgcolor: (uploadedFiles.length || imageUrls.length) ? 'transparent' : '#f5f5f5',
+                          bgcolor: uploadedFiles.length ? 'transparent' : '#f5f5f5',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center'
                         }}>
                           {uploadedFiles.length ? (
-                            <img 
-                              src={uploadedFiles[0].preview} 
-                              alt="Template Preview" 
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                            />
-                          ) : imageUrls.length ? (
-                            <img 
-                              src={imageUrls[0]} 
-                              alt="Template Preview" 
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                            />
+                            uploadedFiles[0].file.type.startsWith('video/') ? (
+                              <video 
+                                src={uploadedFiles[0].preview} 
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                muted
+                                controls={false}
+                              />
+                            ) : (
+                              <img 
+                                src={uploadedFiles[0].preview} 
+                                alt="Template Preview" 
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                              />
+                            )
                           ) : (
-                            <Typography variant="body2" color="textSecondary">No preview image</Typography>
+                            <Typography variant="body2" color="textSecondary">No preview file</Typography>
                           )}
                         </Box>
                       </Grid>
@@ -1912,9 +2153,197 @@ const UploadPage = () => {
           </Fade>
         );
         
-      case 2: // Publish
+      case 2: // Details
         return (
           <Fade in={activeStep === 2}>
+            <StepContent>
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <SectionTitle variant="h6">
+                    <SectionIcon><Settings /></SectionIcon>
+                    Template Details
+                  </SectionTitle>
+                  <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                    Add tags, pricing, and additional information
+                  </Typography>
+                </Grid>
+                
+                {/* Tags Section */}
+                <Grid item xs={12}>
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="subtitle1" gutterBottom>
+                      Tags & Keywords
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                      Add relevant tags to help users find your template (max 5 tags)
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                      {tags.map((tag, index) => (
+                        <Chip
+                          key={index}
+                          label={tag}
+                          onDelete={() => {
+                            setTags(tags.filter((_, i) => i !== index));
+                            updateFormDirty();
+                          }}
+                          color="primary"
+                          variant="outlined"
+                        />
+                      ))}
+                    </Box>
+                    <TextField
+                      fullWidth
+                      placeholder="Type a tag and press Enter"
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && tagInput.trim() && tags.length < 5) {
+                          e.preventDefault();
+                          const newTag = tagInput.trim().toLowerCase();
+                          if (!tags.includes(newTag)) {
+                            setTags([...tags, newTag]);
+                            setTagInput('');
+                            updateFormDirty();
+                          }
+                        }
+                      }}
+                      disabled={tags.length >= 5 || isSubmitting}
+                      error={!!errors.tags}
+                      helperText={errors.tags || `${tags.length}/5 tags`}
+                    />
+                  </Box>
+                </Grid>
+                
+                {/* GitHub Repository Section */}
+                <Grid item xs={12}>
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="subtitle1" gutterBottom>
+                      GitHub Repository (Optional)
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                      Link to your GitHub repository for additional credibility
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                      <TextField
+                        fullWidth
+                        placeholder="https://github.com/username/repository"
+                        value={githubLink}
+                        onChange={(e) => {
+                          setGithubLink(e.target.value);
+                          updateFormDirty();
+                        }}
+                        disabled={isSubmitting}
+                        error={!!errors.githubLink}
+                        helperText={errors.githubLink}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <GitHub />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                      <Button
+                        variant="outlined"
+                        onClick={testGitHubLink}
+                        disabled={!githubLink || isSubmitting}
+                        sx={{ minWidth: '100px' }}
+                      >
+                        Test
+                      </Button>
+                    </Box>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={isPrivateRepo}
+                          onChange={(e) => {
+                            setIsPrivateRepo(e.target.checked);
+                            updateFormDirty();
+                          }}
+                          disabled={isSubmitting}
+                        />
+                      }
+                      label="This is a private repository"
+                      sx={{ mt: 1 }}
+                    />
+                  </Box>
+                </Grid>
+                
+                {/* Basic Pricing Section */}
+                <Grid item xs={12}>
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="subtitle1" gutterBottom>
+                      Pricing Model
+                    </Typography>
+                    <FormControl fullWidth disabled={isSubmitting} error={!!errors.pricingTier}>
+                      <RadioGroup
+                        value={pricingTier}
+                        onChange={(e) => {
+                          setPricingTier(e.target.value);
+                          updateFormDirty();
+                          setErrors(prev => ({ ...prev, pricingTier: undefined }));
+                        }}
+                      >
+                        <FormControlLabel
+                          value="Free"
+                          control={<Radio />}
+                          label={
+                            <Box>
+                              <Typography variant="body1">Free Template</Typography>
+                              <Typography variant="body2" color="textSecondary">
+                                Share your template for free and build your reputation
+                              </Typography>
+                            </Box>
+                          }
+                        />
+                        <FormControlLabel
+                          value="Premium"
+                          control={<Radio />}
+                          label={
+                            <Box>
+                              <Typography variant="body1">Premium Template</Typography>
+                              <Typography variant="body2" color="textSecondary">
+                                Set a price and earn revenue from your template
+                              </Typography>
+                            </Box>
+                          }
+                        />
+                      </RadioGroup>
+                      {errors.pricingTier && (
+                        <FormHelperText>{errors.pricingTier}</FormHelperText>
+                      )}
+                    </FormControl>
+                    
+                    {pricingTier === 'Premium' && (
+                      <Box sx={{ mt: 2 }}>
+                        <TextField
+                          type="number"
+                          label="Price (USD)"
+                          value={price}
+                          onChange={(e) => {
+                            setPrice(Number(e.target.value));
+                            updateFormDirty();
+                          }}
+                          disabled={isSubmitting}
+                          error={!!errors.price}
+                          helperText={errors.price || `You'll earn $${(price * 0.7).toFixed(2)} per sale (70% revenue share)`}
+                          InputProps={{
+                            startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                          }}
+                          sx={{ maxWidth: '200px' }}
+                        />
+                      </Box>
+                    )}
+                  </Box>
+                </Grid>
+              </Grid>
+            </StepContent>
+          </Fade>
+        );
+        
+      case 3: // Publish
+        return (
+          <Fade in={activeStep === 3}>
             <StepContent>
               <Grid container spacing={3}>
                 <Grid item xs={12}>
@@ -1922,6 +2351,11 @@ const UploadPage = () => {
                     <SectionIcon><AttachMoney /></SectionIcon>
                     Pricing & Publishing
                   </SectionTitle>
+                  {errors.general && (
+                    <Alert severity="error" sx={{ mt: 2 }}>
+                      {errors.general}
+                    </Alert>
+                  )}
                 </Grid>
                 
                 {/* Pricing Section */}
@@ -1930,12 +2364,16 @@ const UploadPage = () => {
                     <Typography variant="subtitle1" gutterBottom>
                       Choose Your Pricing Model
                     </Typography>
-                    <FormControl fullWidth disabled={isSubmitting}>
+                    <FormControl fullWidth disabled={isSubmitting} error={!!errors.pricingTier}>
                       <RadioGroup
                         value={pricingTier}
                         onChange={(e) => {
                           setPricingTier(e.target.value);
                           updateFormDirty();
+                          // Clear error when user selects
+                          if (errors.pricingTier) {
+                            setErrors(prev => ({ ...prev, pricingTier: undefined }));
+                          }
                         }}
                         row
                       >
@@ -1964,6 +2402,7 @@ const UploadPage = () => {
                           }
                         />
                       </RadioGroup>
+                      {errors.pricingTier && <FormHelperText>{errors.pricingTier}</FormHelperText>}
                     </FormControl>
                   </Box>
                 </Grid>
@@ -2004,6 +2443,71 @@ const UploadPage = () => {
                     </Alert>
                   </Grid>
                 )}
+                
+                {/* GitHub Repository Section */}
+                <Grid item xs={12}>
+                  <Typography variant="subtitle1" gutterBottom>
+                    <GitHub sx={{ mr: 1, verticalAlign: 'middle' }} />
+                    Source Code Repository (Optional)
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                    Link to your GitHub repository to increase trust and showcase your code quality. This can boost downloads by up to 40%.
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1, mb: 2 }}>
+                    <TextField
+                      label="GitHub Repository URL"
+                      variant="outlined"
+                      fullWidth
+                      value={githubLink}
+                      onChange={(e) => {
+                        setGithubLink(e.target.value);
+                        updateFormDirty();
+                      }}
+                      disabled={isSubmitting}
+                      placeholder="https://github.com/username/repository"
+                      error={!!errors.githubLink}
+                      helperText={errors.githubLink || "Optional but recommended for higher trust"}
+                      InputProps={{
+                        startAdornment: <GitHub fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />,
+                      }}
+                    />
+                    {githubLink && (
+                      <Button
+                        variant="outlined"
+                        onClick={testGitHubLink}
+                        disabled={isSubmitting}
+                        sx={{ minWidth: 'auto', px: 2 }}
+                      >
+                        Test
+                      </Button>
+                    )}
+                  </Box>
+                  
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={isPrivateRepo}
+                        onChange={(e) => {
+                          setIsPrivateRepo(e.target.checked);
+                          updateFormDirty();
+                        }}
+                        disabled={isSubmitting || !githubLink}
+                      />
+                    }
+                    label="This is a private repository"
+                    sx={{ mb: 1 }}
+                  />
+                  
+                  {githubLink && (
+                    <Alert severity="success" sx={{ mt: 1 }}>
+                      <Typography variant="body2">
+                        ✅ Great! Adding a repository link increases user trust and can boost your downloads significantly.
+                        {isPrivateRepo && " Don't worry - we'll note that the source is private."}
+                      </Typography>
+                    </Alert>
+                  )}
+                </Grid>
                 
                 {/* Quality Score Section */}
                 <Grid item xs={12}>
@@ -2057,7 +2561,7 @@ const UploadPage = () => {
                           <Box component="ul" sx={{ mt: 1, pl: 2 }}>
                             {getMissingRequirements().map((req, index) => (
                               <Typography key={index} component="li" variant="body2" color="text.secondary">
-                                {req}
+                                {req.text}
                               </Typography>
                             ))}
                           </Box>
@@ -2121,12 +2625,12 @@ const UploadPage = () => {
                     <Grid container spacing={1}>
                       <Grid item xs={12} sm={6}>
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                          {(uploadedFiles.length > 0 || imageUrls.length > 0) ? 
+                          {uploadedFiles.length > 0 ? 
                             <CheckCircle color="success" sx={{ mr: 1 }} /> : 
                             <RadioButtonUnchecked color="disabled" sx={{ mr: 1 }} />
                           }
                           <Typography variant="body2">
-                            Images uploaded ({uploadedFiles.length + imageUrls.length})
+                            Files uploaded ({uploadedFiles.length})
                           </Typography>
                         </Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -2174,6 +2678,15 @@ const UploadPage = () => {
                           }
                           <Typography variant="body2">
                             Framework/tools selected
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          {githubLink ? 
+                            <CheckCircle color="success" sx={{ mr: 1 }} /> : 
+                            <RadioButtonUnchecked color="disabled" sx={{ mr: 1 }} />
+                          }
+                          <Typography variant="body2">
+                            GitHub link (optional)
                           </Typography>
                         </Box>
                       </Grid>
@@ -2317,7 +2830,10 @@ const UploadPage = () => {
             ) : (
               <PrimaryButton
                 variant="contained"
-                onClick={handleNext}
+                onClick={() => {
+                  console.log('Next button clicked!');
+                  handleNext();
+                }}
                 disabled={isSubmitting}
                 endIcon={<NavigateNext />}
               >
@@ -2367,6 +2883,13 @@ const UploadPage = () => {
           </Box>
         )}
       </FormContainer>
+      
+      {/* Full Preview Dialog */}
+      <FullPreviewContainer
+        uploadedFiles={uploadedFiles}
+        open={showPreviewDialog}
+        onClose={() => setShowPreviewDialog(false)}
+      />
     </PageContainer>
   );
 };

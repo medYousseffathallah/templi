@@ -100,7 +100,7 @@ const ProgressIndicator = styled.div`
   z-index: 10;
 `;
 
-const SwipeContainer = () => {
+const SwipeContainer = ({ templates: propTemplates, onSwipe, onFavorite }) => {
   const [templates, setTemplates] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -108,6 +108,9 @@ const SwipeContainer = () => {
 
   // Get the current user from auth context
   const { currentUser, isAuthenticated } = useAuth();
+  
+  // Use prop templates if provided, otherwise fetch our own
+  const shouldFetchTemplates = !propTemplates;
 
   const fetchTemplates = async () => {
     try {
@@ -171,8 +174,16 @@ const SwipeContainer = () => {
   };
 
   useEffect(() => {
-    fetchTemplates();
-  }, []);
+    if (propTemplates) {
+      // Use templates passed as props
+      setTemplates(propTemplates);
+      setCurrentIndex(0);
+      setLoading(false);
+    } else {
+      // Fetch templates for For You page
+      fetchTemplates();
+    }
+  }, [propTemplates]);
 
   // Record view interaction when a new template is shown
   useEffect(() => {
@@ -200,6 +211,13 @@ const SwipeContainer = () => {
   }, [currentIndex, templates, isAuthenticated, currentUser]);
 
   const handleSwipe = async (direction, templateId) => {
+    // Use custom onSwipe handler if provided (for Trending/Explore pages)
+    if (onSwipe) {
+      onSwipe(direction, templateId);
+      return;
+    }
+    
+    // Default swipe behavior for For You page
     if (isAuthenticated && currentUser) {
       console.log('Current user:', currentUser);
       console.log('Template ID:', templateId);
@@ -227,6 +245,13 @@ const SwipeContainer = () => {
   };
 
   const handleFavorite = async (templateId) => {
+    // Use custom onFavorite handler if provided (for Trending/Explore pages)
+    if (onFavorite) {
+      onFavorite(templateId);
+      return;
+    }
+    
+    // Default favorite behavior for For You page
     if (isAuthenticated && currentUser) {
       console.log('Current user for favorite:', currentUser);
       console.log('Template ID for favorite:', templateId);

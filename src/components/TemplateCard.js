@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import styled from "styled-components";
-import { Close, Star, Favorite, Info } from "@mui/icons-material";
+import { Close, Star, Favorite, Info, ChevronLeft, ChevronRight } from "@mui/icons-material";
 
 const Card = styled.div`
   position: relative;
@@ -15,6 +15,94 @@ const Card = styled.div`
   
   &:hover {
     transform: translateY(-5px);
+  }
+`;
+
+const MediaContainer = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+`;
+
+const MediaItem = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: cover;
+  background-position: center;
+  transition: filter 0.3s ease;
+  opacity: ${props => props.$isActive ? 1 : 0};
+  transition: opacity 0.3s ease;
+`;
+
+const VideoElement = styled.video`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: ${props => props.$isActive ? 1 : 0};
+  transition: opacity 0.3s ease;
+`;
+
+const MediaNavButton = styled.button`
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(0, 0, 0, 0.5);
+  border: none;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 4;
+  opacity: 0;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.7);
+    transform: translateY(-50%) scale(1.1);
+  }
+  
+  ${Card}:hover & {
+    opacity: 1;
+  }
+`;
+
+const PrevButton = styled(MediaNavButton)`
+  left: 16px;
+`;
+
+const NextButton = styled(MediaNavButton)`
+  right: 16px;
+`;
+
+const MediaIndicators = styled.div`
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 3;
+`;
+
+const MediaIndicator = styled.div`
+  width: 30px;
+  height: 3px;
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  transition: all 0.3s ease;
+  
+  &.active {
+    background-color: rgba(255, 255, 255, 0.9);
   }
 `;
 
@@ -239,6 +327,11 @@ const TemplateCard = ({
   const [swipePercentage, setSwipePercentage] = useState(0);
   const [touchStartTime, setTouchStartTime] = useState(0);
   const [cardTransform, setCardTransform] = useState({ x: 0, rotate: 0, blur: 0 });
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  
+  // Get media files from template (assuming template has mediaFiles array or fallback to imageUrl)
+  const mediaFiles = template.mediaFiles || (template.imageUrl ? [{ url: template.imageUrl, type: 'image' }] : []);
+  const videoRefs = useRef([]);
   
   const cardRef = useRef(null);
   const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 500;
@@ -260,8 +353,61 @@ const TemplateCard = ({
   useEffect(() => {
     if (!isActive) {
       resetCardPosition();
+      setCurrentMediaIndex(0);
     }
   }, [isActive]);
+  
+  // Auto-play videos when they become active
+  useEffect(() => {
+    if (isActive && mediaFiles.length > 0) {
+      const currentMedia = mediaFiles[currentMediaIndex];
+      if (currentMedia && currentMedia.type === 'video') {
+        const videoElement = videoRefs.current[currentMediaIndex];
+        if (videoElement) {
+          videoElement.play().catch(console.error);
+        }
+      }
+      
+      // Pause other videos
+      videoRefs.current.forEach((video, index) => {
+        if (video && index !== currentMediaIndex) {
+          video.pause();
+        }
+      });
+    } else {
+      // Pause all videos when card is not active
+      videoRefs.current.forEach(video => {
+        if (video) {
+          video.pause();
+        }
+      });
+    }
+  }, [isActive, currentMediaIndex, mediaFiles]);
+  
+  // Media navigation functions
+  const goToPreviousMedia = (e) => {
+    e.stopPropagation();
+    if (mediaFiles.length > 1) {
+      setCurrentMediaIndex(prev => prev > 0 ? prev - 1 : mediaFiles.length - 1);
+    }
+  };
+  
+  const goToNextMedia = (e) => {
+    e.stopPropagation();
+    if (mediaFiles.length > 1) {
+      setCurrentMediaIndex(prev => prev < mediaFiles.length - 1 ? prev + 1 : 0);
+    }
+  };
+  
+  const goToMediaIndex = (index, e) => {
+    e.stopPropagation();
+    setCurrentMediaIndex(index);
+  };
+  
+  // Determine if current media is video
+  const isCurrentMediaVideo = (url) => {
+    return url && (url.includes('.mp4') || url.includes('.webm') || url.includes('.mov') || url.includes('video'));
+  };
 
   // Reset card position
   const resetCardPosition = () => {
@@ -527,12 +673,62 @@ const TemplateCard = ({
       aria-label={`Template: ${template.title}. Use arrow keys to like or dislike.`}
       role="button"
     >
-      <CardBackground 
-        style={{
-          backgroundImage: `url(${template.imageUrl})`,
-          filter: `blur(${cardTransform.blur}px)`,
-        }}
-      />
+      <MediaContainer>
+        {mediaFiles.map((media, index) => {
+          const isVideo = media.type === 'video' || isCurrentMediaVideo(media.url);
+          const isActive = index === currentMediaIndex;
+          
+          return isVideo ? (
+            <VideoElement
+              key={index}
+              ref={el => videoRefs.current[index] = el}
+              src={media.url}
+              $isActive={isActive}
+              muted
+              loop
+              playsInline
+              style={{
+                filter: `blur(${cardTransform.blur}px)`,
+              }}
+            />
+          ) : (
+            <MediaItem
+              key={index}
+              $isActive={isActive}
+              style={{
+                backgroundImage: `url(${media.url})`,
+                filter: `blur(${cardTransform.blur}px)`,
+              }}
+            />
+          );
+        })}
+        
+        {/* Media Navigation Buttons */}
+        {mediaFiles.length > 1 && (
+          <>
+            <PrevButton onClick={goToPreviousMedia} aria-label="Previous media">
+              <ChevronLeft />
+            </PrevButton>
+            <NextButton onClick={goToNextMedia} aria-label="Next media">
+              <ChevronRight />
+            </NextButton>
+          </>
+        )}
+        
+        {/* Media Indicators */}
+        {mediaFiles.length > 1 && (
+          <MediaIndicators>
+            {mediaFiles.map((_, index) => (
+              <MediaIndicator
+                key={index}
+                className={index === currentMediaIndex ? 'active' : ''}
+                onClick={(e) => goToMediaIndex(index, e)}
+                style={{ cursor: 'pointer' }}
+              />
+            ))}
+          </MediaIndicators>
+        )}
+      </MediaContainer>
       <CardOverlay />
       
       {/* Directional overlays */}
