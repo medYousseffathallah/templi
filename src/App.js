@@ -9,6 +9,7 @@ import ExplorePage from "./pages/ExplorePage";
 import UploadPage from "./pages/UploadPage";
 import FavoritesPage from "./pages/FavoritesPage";
 import TrendingPage from "./pages/TrendingPage";
+import ProfilePage from "./pages/ProfilePage";
 import styled from "styled-components";
 import { AuthProvider } from "./context/AuthContext";
 import theme from "./theme";
@@ -63,7 +64,7 @@ function App() {
             />
             <Route
               path="/profile"
-              element={<PageWrapper>Profile Page</PageWrapper>}
+              element={<ProfilePage />}
             />
             <Route
               path="/settings"

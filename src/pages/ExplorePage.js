@@ -88,6 +88,17 @@ const TemplateImage = styled.div`
   }
 `;
 
+const TemplateVideo = styled.video`
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  position: relative;
+  
+  @media (max-width: 768px) {
+    height: 180px;
+  }
+`;
+
 const TemplateInfo = styled.div`
   padding: 20px;
   
@@ -217,20 +228,44 @@ const ExplorePage = () => {
     <ExploreContainer>
       <Title>Recently Added Templates</Title>
       <TemplatesGrid>
-        {templates.map((template) => (
-          <TemplateCard key={template._id}>
-            <TemplateImage imageUrl={template.imageUrl} />
-            <TemplateInfo>
-              <TemplateTitle>{template.title}</TemplateTitle>
-              <TemplateDescription>{template.description}</TemplateDescription>
-              <TagsContainer>
-                {template.tags.map((tag, index) => (
-                  <Tag key={index}>{tag}</Tag>
-                ))}
-              </TagsContainer>
-            </TemplateInfo>
-          </TemplateCard>
-        ))}
+        {templates.map((template) => {
+          // Determine what media to show - prioritize video, then first image from imageUrls, then fallback to imageUrl
+          const getPreviewMedia = () => {
+            if (template.videoUrl) {
+              return (
+                <TemplateVideo 
+                  src={template.videoUrl} 
+                  muted 
+                  loop 
+                  playsInline
+                  onMouseEnter={(e) => e.target.play()}
+                  onMouseLeave={(e) => e.target.pause()}
+                />
+              );
+            } else if (template.imageUrls && template.imageUrls.length > 0) {
+              return <TemplateImage imageUrl={template.imageUrls[0]} />;
+            } else if (template.imageUrl) {
+              return <TemplateImage imageUrl={template.imageUrl} />;
+            } else {
+              return <TemplateImage imageUrl="" />; // Empty placeholder
+            }
+          };
+          
+          return (
+            <TemplateCard key={template._id}>
+              {getPreviewMedia()}
+              <TemplateInfo>
+                <TemplateTitle>{template.title}</TemplateTitle>
+                <TemplateDescription>{template.description}</TemplateDescription>
+                <TagsContainer>
+                  {template.tags.map((tag, index) => (
+                    <Tag key={index}>{tag}</Tag>
+                  ))}
+                </TagsContainer>
+              </TemplateInfo>
+            </TemplateCard>
+          );
+        })}
       </TemplatesGrid>
     </ExploreContainer>
   );

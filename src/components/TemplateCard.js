@@ -1,20 +1,23 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import styled from "styled-components";
-import { Close, Star, Favorite, Info, ChevronLeft, ChevronRight } from "@mui/icons-material";
+import { Close, Star, Favorite, Info, ChevronLeft, ChevronRight, Fullscreen, FullscreenExit, Verified, Download, Upload, GetApp } from "@mui/icons-material";
 
 const Card = styled.div`
   position: relative;
-  background-color: var(--background-paper);
+  background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
   width: 100%;
   max-width: 400px;
   height: 600px;
-  border-radius: var(--borderRadius-large);
-  box-shadow: var(--shadows-card);
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08), 0 8px 16px rgba(0, 0, 0, 0.04);
   overflow: hidden;
-  transition: transform 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
   
   &:hover {
-    transform: translateY(-5px);
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 32px 64px rgba(0, 0, 0, 0.12), 0 16px 32px rgba(0, 0, 0, 0.08);
   }
 `;
 
@@ -43,20 +46,24 @@ const MediaItem = styled.div`
 const VideoElement = styled.video`
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: ${props => props.$expanded ? 'contain' : 'cover'};
+  background-color: ${props => props.$expanded ? '#000' : 'transparent'};
   opacity: ${props => props.$isActive ? 1 : 0};
-  transition: opacity 0.3s ease;
+  transition: all 0.3s ease;
+  cursor: ${props => props.$expanded ? 'default' : 'pointer'};
 `;
 
 const MediaNavButton = styled.button`
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background-color: rgba(0, 0, 0, 0.5);
-  border: none;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.2) 0%, 
+    rgba(255, 255, 255, 0.1) 100%);
   color: white;
-  width: 40px;
-  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -64,11 +71,20 @@ const MediaNavButton = styled.button`
   cursor: pointer;
   z-index: 4;
   opacity: 0;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   
   &:hover {
-    background-color: rgba(0, 0, 0, 0.7);
+    background: linear-gradient(135deg, 
+      rgba(255, 255, 255, 0.3) 0%, 
+      rgba(255, 255, 255, 0.2) 100%);
     transform: translateY(-50%) scale(1.1);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  }
+  
+  &:active {
+    transform: translateY(-50%) scale(0.95);
   }
   
   ${Card}:hover & {
@@ -84,25 +100,67 @@ const NextButton = styled(MediaNavButton)`
   right: 16px;
 `;
 
+const ExpandButton = styled.button`
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 5;
+  
+  &:hover {
+    background: rgba(0, 0, 0, 0.8);
+    transform: scale(1.1);
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+`;
+
 const MediaIndicators = styled.div`
   position: absolute;
-  top: 16px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 6px;
+  gap: 12px;
   z-index: 3;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 8px 16px;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
 `;
 
 const MediaIndicator = styled.div`
-  width: 30px;
-  height: 3px;
-  background-color: rgba(255, 255, 255, 0.3);
-  border-radius: 2px;
-  transition: all 0.3s ease;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: ${(props) => 
+    props.$active 
+      ? 'linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%)' 
+      : 'rgba(255, 255, 255, 0.4)'};
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: ${(props) => 
+    props.$active 
+      ? '0 2px 8px rgba(255, 255, 255, 0.3)' 
+      : '0 1px 3px rgba(0, 0, 0, 0.2)'};
   
-  &.active {
-    background-color: rgba(255, 255, 255, 0.9);
+  &:hover {
+    background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
+    transform: scale(1.3);
+    box-shadow: 0 3px 12px rgba(255, 255, 255, 0.4);
   }
 `;
 
@@ -124,9 +182,10 @@ const CardOverlay = styled.div`
   right: 0;
   bottom: 0;
   background: linear-gradient(to bottom, 
-    rgba(0, 0, 0, 0.1) 0%, 
-    rgba(0, 0, 0, 0.3) 70%, 
-    rgba(0, 0, 0, 0.7) 100%);
+    rgba(0, 0, 0, 0.05) 0%,
+    rgba(0, 0, 0, 0.1) 30%,
+    rgba(0, 0, 0, 0.4) 70%, 
+    rgba(0, 0, 0, 0.8) 100%);
 `;
 
 const DirectionalOverlay = styled.div`
@@ -175,48 +234,123 @@ const CardContent = styled.div`
   position: absolute;
   bottom: 0;
   width: 100%;
-  padding: 24px;
+  padding: 32px 28px;
   color: white;
   z-index: 2;
+  background: linear-gradient(to top, 
+    rgba(0, 0, 0, 0.6) 0%,
+    rgba(0, 0, 0, 0.3) 50%,
+    transparent 100%);
+  border-radius: 0 0 24px 24px;
 `;
 
 const Title = styled.h2`
-  margin: 0 0 8px 0;
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
+  margin: 0 0 12px 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  line-height: 1.2;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
 `;
 
 const Description = styled.p`
-  color: white;
-  font-size: 14px;
-  line-height: 1.5;
-  margin-bottom: 16px;
-  max-height: ${(props) => (props.$showDetails ? 'none' : '48px')};
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+  font-weight: 400;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  max-height: ${(props) => (props.$showDetails ? 'none' : '52px')};
   overflow: ${(props) => (props.$showDetails ? 'visible' : 'hidden')};
   text-overflow: ellipsis;
+  letter-spacing: 0.2px;
 `;
 
 const ReadMoreButton = styled.button`
-  background: none;
-  border: none;
-  color: var(--primary-main);
-  font-size: 14px;
-  font-weight: 600;
-  padding: 0;
-  margin: -8px 0 16px 0;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.15) 0%, 
+    rgba(255, 255, 255, 0.05) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  text-decoration: underline;
-  transition: color 0.2s ease;
+  padding: 8px 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(8px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.3px;
   
   &:hover {
-    color: var(--primary-dark);
+    background: linear-gradient(135deg, 
+      rgba(255, 255, 255, 0.25) 0%, 
+      rgba(255, 255, 255, 0.15) 100%);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
   
-  &:focus {
-    outline: none;
-    color: var(--primary-dark);
+  &:active {
+    transform: translateY(0);
   }
+`;
+
+const UserTrustInfo = styled.div`
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.1) 0%, 
+    rgba(255, 255, 255, 0.05) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  backdrop-filter: blur(10px);
+  display: ${props => props.$show ? 'block' : 'none'};
+`;
+
+const UserInfoHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+`;
+
+const UserName = styled.span`
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 14px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+`;
+
+const VerifiedBadge = styled.div`
+  display: flex;
+  align-items: center;
+  color: #4CAF50;
+`;
+
+const TrustMetrics = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+`;
+
+const TrustMetric = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+`;
+
+const MetricIcon = styled.div`
+  display: flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.6);
 `;
 
 const TagsContainer = styled.div`
@@ -227,16 +361,25 @@ const TagsContainer = styled.div`
 `;
 
 const Tag = styled.span`
-  background-color: rgba(255, 255, 255, 0.2);
-  padding: 6px 12px;
-  border-radius: 16px;
-  font-size: 12px;
-  font-weight: 500;
-  backdrop-filter: blur(4px);
-  transition: all 0.2s ease;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.25) 0%, 
+    rgba(255, 255, 255, 0.15) 100%);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  letter-spacing: 0.3px;
   
   &:hover {
-    background-color: rgba(255, 255, 255, 0.3);
+    background: linear-gradient(135deg, 
+      rgba(255, 255, 255, 0.35) 0%, 
+      rgba(255, 255, 255, 0.25) 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 `;
 
@@ -250,34 +393,56 @@ const ButtonsContainer = styled.div`
 `;
 
 const ActionButton = styled.button`
-  background-color: white;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  color: #333;
   border: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
   display: flex;
   justify-content: center;
   align-items: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s;
   }
-
+  
+  &:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.2);
+    background: rgba(255, 255, 255, 1);
+    
+    &::before {
+      left: 100%;
+    }
+  }
+  
   &:active {
-    transform: scale(0.95);
+    transform: translateY(0) scale(0.98);
   }
   
   &:nth-child(3) { /* Like button */
-    background-color: var(--primary-main);
-    box-shadow: 0 4px 12px rgba(255, 88, 100, 0.3);
+    background: linear-gradient(135deg, var(--primary-main) 0%, var(--primary-dark) 100%);
+    color: white;
+    box-shadow: 0 8px 25px rgba(255, 88, 100, 0.3);
     
     &:hover {
-      background-color: var(--primary-dark);
-      box-shadow: 0 6px 16px rgba(255, 88, 100, 0.4);
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-main) 100%);
+      box-shadow: 0 12px 35px rgba(255, 88, 100, 0.4);
     }
     
     svg {
@@ -309,6 +474,8 @@ const InfoButton = styled.button`
   }
 `;
 
+
+
 const TemplateCard = ({
   template,
   isActive,
@@ -328,9 +495,31 @@ const TemplateCard = ({
   const [touchStartTime, setTouchStartTime] = useState(0);
   const [cardTransform, setCardTransform] = useState({ x: 0, rotate: 0, blur: 0 });
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const [isVideoExpanded, setIsVideoExpanded] = useState(false);
   
-  // Get media files from template (assuming template has mediaFiles array or fallback to imageUrl)
-  const mediaFiles = template.mediaFiles || (template.imageUrl ? [{ url: template.imageUrl, type: 'image' }] : []);
+  // Create media files array from template's imageUrls and videoUrl
+  const mediaFiles = useMemo(() => {
+    const files = [];
+    
+    // Add images from imageUrls array
+    if (template.imageUrls && template.imageUrls.length > 0) {
+      template.imageUrls.forEach(url => {
+        files.push({ url, type: 'image' });
+      });
+    }
+    
+    // Add video if videoUrl exists
+    if (template.videoUrl) {
+      files.push({ url: template.videoUrl, type: 'video' });
+    }
+    
+    // Fallback to single imageUrl if no imageUrls or videoUrl
+    if (files.length === 0 && template.imageUrl) {
+      files.push({ url: template.imageUrl, type: 'image' });
+    }
+    
+    return files;
+  }, [template.imageUrls, template.videoUrl, template.imageUrl]);
   const videoRefs = useRef([]);
   
   const cardRef = useRef(null);
@@ -653,6 +842,16 @@ const TemplateCard = ({
     }
   };
 
+  const handleDownload = (e) => {
+    e.stopPropagation();
+    if (template.githubLink) {
+      window.open(template.githubLink, '_blank', 'noopener,noreferrer');
+    } else {
+      // Fallback - could show a message or redirect to a default repository
+      console.log('No GitHub repository available for this template');
+    }
+  };
+
   return (
     <Card
       ref={cardRef}
@@ -684,12 +883,14 @@ const TemplateCard = ({
               ref={el => videoRefs.current[index] = el}
               src={media.url}
               $isActive={isActive}
+              $expanded={isVideoExpanded}
               muted
               loop
               playsInline
               style={{
                 filter: `blur(${cardTransform.blur}px)`,
               }}
+              onClick={() => !isVideoExpanded && setIsVideoExpanded(true)}
             />
           ) : (
             <MediaItem
@@ -728,6 +929,16 @@ const TemplateCard = ({
             ))}
           </MediaIndicators>
         )}
+        
+        {/* Expand Button for Videos */}
+        {mediaFiles[currentMediaIndex] && (mediaFiles[currentMediaIndex].type === 'video' || isCurrentMediaVideo(mediaFiles[currentMediaIndex].url)) && (
+          <ExpandButton 
+            onClick={() => setIsVideoExpanded(!isVideoExpanded)}
+            aria-label={isVideoExpanded ? "Collapse video" : "Expand video"}
+          >
+            {isVideoExpanded ? <FullscreenExit fontSize="small" /> : <Fullscreen fontSize="small" />}
+          </ExpandButton>
+        )}
       </MediaContainer>
       <CardOverlay />
       
@@ -742,6 +953,8 @@ const TemplateCard = ({
         <Info fontSize="small" />
       </InfoButton>
 
+
+
       <CardContent>
         <Title>{template.title}</Title>
         <Description className="description-text" $showDetails={showDetails}>
@@ -753,6 +966,41 @@ const TemplateCard = ({
             Read More
           </ReadMoreButton>
         )}
+        
+        <UserTrustInfo $show={showDetails}>
+          <UserInfoHeader>
+            <UserName>{template.createdBy?.name || template.author || 'Anonymous Creator'}</UserName>
+            <VerifiedBadge>
+              <Verified sx={{ fontSize: '16px' }} />
+            </VerifiedBadge>
+          </UserInfoHeader>
+          <TrustMetrics>
+            <TrustMetric>
+              <MetricIcon>
+                <Upload sx={{ fontSize: '14px' }} />
+              </MetricIcon>
+              <span>{template.createdBy?.templatesCount || '12'} Templates</span>
+            </TrustMetric>
+            <TrustMetric>
+              <MetricIcon>
+                <Download sx={{ fontSize: '14px' }} />
+              </MetricIcon>
+              <span>{template.downloadCount || '2.3k'} Downloads</span>
+            </TrustMetric>
+            <TrustMetric>
+              <MetricIcon>
+                <Star sx={{ fontSize: '14px' }} />
+              </MetricIcon>
+              <span>{template.createdBy?.rating || '4.9'} Rating</span>
+            </TrustMetric>
+            <TrustMetric>
+              <MetricIcon>
+                <Favorite sx={{ fontSize: '14px' }} />
+              </MetricIcon>
+              <span>{template.favoriteCount || '156'} Favorites</span>
+            </TrustMetric>
+          </TrustMetrics>
+        </UserTrustInfo>
 
         <TagsContainer>
           {template.tags.map((tag, index) => (
@@ -784,6 +1032,21 @@ const TemplateCard = ({
               >
                 <Star style={{ color: "var(--action-favorite)", fontSize: 28 }} />
               </ActionButton>
+
+              {/* Download/GitHub Button - Show in detailed view */}
+              {showDetails && template.githubLink && (
+                <ActionButton 
+                  onClick={handleDownload}
+                  aria-label="View on GitHub"
+                  style={{ 
+                    background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
+                    color: 'white',
+                    boxShadow: '0 8px 25px rgba(76, 175, 80, 0.3)'
+                  }}
+                >
+                  <GetApp style={{ fontSize: 28 }} />
+                </ActionButton>
+              )}
 
               <ActionButton 
                 onClick={handleLike}
