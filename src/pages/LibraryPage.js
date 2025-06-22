@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { userApi, interactionApi } from "../services/api";
 import { useAuth } from "../context/AuthContext";
-import TemplateCard from "../components/TemplateCard";
+import LibraryTemplateCard from "../components/LibraryTemplateCard";
 import { 
   CircularProgress, 
   Alert, 
@@ -24,25 +24,35 @@ import {
 import { useNavigate } from "react-router-dom";
 
 const LibraryContainer = styled.div`
-  padding: 84px 20px 20px 20px; /* Top padding for fixed header (64px + 20px) */
-  max-width: 1200px;
-  margin: 0 auto;
-  margin-left: 260px; /* Space for sidebar (240px + 20px) */
-  min-height: 100vh;
-  background: var(--background-primary);
+  padding: 24px;
+  margin-left: 240px; /* Space for sidebar */
+  margin-top: 64px; /* Space for fixed header */
+  max-width: 1400px;
+  min-height: calc(100vh - 64px);
+  background-color: var(--background-default);
   
   @media (max-width: 768px) {
     margin-left: 0;
-    padding: 84px 16px 80px 16px; /* Bottom padding for mobile navigation */
+    margin-bottom: 80px;
+    padding: 16px;
+    margin-top: 64px;
   }
 `;
 
 const Title = styled.h1`
-  color: var(--text-primary);
-  font-size: 2.5rem;
+  font-size: 32px;
   font-weight: 700;
-  margin-bottom: 10px;
-  text-align: center;
+  margin-bottom: 32px;
+  color: var(--text-primary);
+  background: linear-gradient(135deg, var(--secondary-main), var(--primary-main));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  
+  @media (max-width: 768px) {
+    font-size: 28px;
+    margin-bottom: 24px;
+  }
 `;
 
 const Subtitle = styled.p`
@@ -79,9 +89,19 @@ const TabsContainer = styled(Box)`
 
 const TemplatesGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
   margin-top: 20px;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
 `;
 
 const EmptyState = styled.div`
@@ -264,6 +284,18 @@ function LibraryPage() {
     }
   };
 
+  const refreshDownloadHistory = async () => {
+    if (!currentUser) return;
+    
+    try {
+      const userId = currentUser._id || currentUser.id || currentUser;
+      const downloadsResponse = await interactionApi.getUserInteractions(userId, 'download');
+      setDownloadHistory(downloadsResponse.data || []);
+    } catch (err) {
+      console.error('Error refreshing download history:', err);
+    }
+  };
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -303,7 +335,6 @@ function LibraryPage() {
   return (
     <LibraryContainer>
       <Title>My Library</Title>
-      <Subtitle>Your personal template collection and activity</Subtitle>
       
       {error && (
         <ErrorContainer>
@@ -356,11 +387,13 @@ function LibraryPage() {
             </SectionHeader>
             <TemplatesGrid>
               {favorites.map((template) => (
-                <TemplateCard
+                <LibraryTemplateCard
                   key={template._id || template.id}
                   template={template}
-                  showDetails={true}
+                  showRemoveButton={true}
+                  showGitHubButton={true}
                   onRemoveFromFavorites={() => handleRemoveFromFavorites(template._id || template.id)}
+                  onDownload={refreshDownloadHistory}
                 />
               ))}
             </TemplatesGrid>
@@ -390,11 +423,12 @@ function LibraryPage() {
             </SectionHeader>
             <TemplatesGrid>
               {recentlyViewed.map((interaction) => (
-                <TemplateCard
+                <LibraryTemplateCard
                   key={`${interaction._id}-${interaction.createdAt}`}
                   template={interaction.template}
-                  showDetails={true}
+                  showGitHubButton={true}
                   viewedAt={interaction.createdAt}
+                  onDownload={refreshDownloadHistory}
                 />
               ))}
             </TemplatesGrid>
@@ -422,30 +456,17 @@ function LibraryPage() {
               </SectionTitle>
               <StatsChip label={`${downloadHistory.length} downloads`} />
             </SectionHeader>
-            <div>
+            <TemplatesGrid>
               {downloadHistory.map((interaction) => (
-                <HistoryItem key={`${interaction._id}-${interaction.createdAt}`}>
-                  <HistoryInfo>
-                    <GitHub style={{ color: 'var(--text-secondary)', fontSize: '1.5rem' }} />
-                    <HistoryText>
-                      <h4>{interaction.template?.title || 'Template'}</h4>
-                      <p>Downloaded {formatDate(interaction.createdAt)}</p>
-                    </HistoryText>
-                  </HistoryInfo>
-                  <HistoryActions>
-                    {interaction.template?.githubLink && (
-                      <IconButton
-                        onClick={() => handleOpenGitHub(interaction.template.githubLink)}
-                        style={{ color: 'var(--primary-main)' }}
-                        title="View on GitHub"
-                      >
-                        <GitHub />
-                      </IconButton>
-                    )}
-                  </HistoryActions>
-                </HistoryItem>
+                <LibraryTemplateCard
+                  key={`${interaction._id}-${interaction.createdAt}`}
+                  template={interaction.template}
+                  showGitHubButton={true}
+                  viewedAt={interaction.createdAt}
+                  onDownload={refreshDownloadHistory}
+                />
               ))}
-            </div>
+            </TemplatesGrid>
           </>
         )}
       </TabPanel>

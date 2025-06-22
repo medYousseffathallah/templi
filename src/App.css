@@ -34,6 +34,13 @@
   --action-like: #FF5864;
   --action-dislike: #E74C3C;
   --action-favorite: #F39C12;
+  
+  /* Additional UI colors for Settings page */
+  --background-elevated: #FFFFFF;
+  --border-default: #E0E0E0;
+  --border-light: #F0F0F0;
+  --accent-primary: #FF5864;
+  --error-primary: #E74C3C;
 }
 
 body {

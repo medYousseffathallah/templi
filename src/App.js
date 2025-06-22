@@ -11,6 +11,7 @@ import FavoritesPage from "./pages/FavoritesPage";
 import LibraryPage from "./pages/LibraryPage";
 import TrendingPage from "./pages/TrendingPage";
 import ProfilePage from "./pages/ProfilePage";
+import SettingsPage from "./pages/SettingsPage";
 import styled from "styled-components";
 import { AuthProvider } from "./context/AuthContext";
 import theme from "./theme";
@@ -69,7 +70,7 @@ function App() {
             />
             <Route
               path="/settings"
-              element={<PageWrapper>Settings</PageWrapper>}
+              element={<SettingsPage />}
             />
           </Routes>
         </AppContainer>
