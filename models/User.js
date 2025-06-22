@@ -35,6 +35,15 @@ const userSchema = new mongoose.Schema(
       trim: true,
       maxlength: 250,
     },
+    name: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+    },
+    website: {
+      type: String,
+      trim: true,
+    },
     favorites: [
       {
         type: mongoose.Schema.Types.ObjectId,

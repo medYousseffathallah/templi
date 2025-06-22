@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Explore, Add, Favorite, Person } from '@mui/icons-material';
+import { Home, Explore, Add, Favorite, Person, Bookmark } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
 const NavContainer = styled.div`
@@ -88,9 +88,9 @@ function MobileNavigation() {
         <Add />
       </AddButton>
       
-      <NavItem to="/favorites" active={isActive('/favorites').toString()}>
-        <Favorite fontSize="small" />
-        <NavText>Favorites</NavText>
+      <NavItem to="/saved" active={isActive('/saved').toString()}>
+        <Bookmark fontSize="small" />
+        <NavText>Library</NavText>
       </NavItem>
       
       <NavItem 

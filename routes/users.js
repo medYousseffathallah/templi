@@ -70,20 +70,27 @@ router.post("/login", async (req, res) => {
 
 // Update user profile
 router.patch("/:id", getUser, async (req, res) => {
-  if (req.body.username) res.user.username = req.body.username;
-  if (req.body.email) res.user.email = req.body.email;
-  if (req.body.password) res.user.password = req.body.password; // Would hash in real app
-  if (req.body.bio) res.user.bio = req.body.bio;
-  if (req.body.profilePicture)
-    res.user.profilePicture = req.body.profilePicture;
-
   try {
+    console.log('Updating profile for user:', res.user.username, 'with data:', req.body);
+    
+    if (req.body.username) res.user.username = req.body.username;
+    if (req.body.email) res.user.email = req.body.email;
+    if (req.body.password) res.user.password = req.body.password; // Would hash in real app
+    if (req.body.bio) res.user.bio = req.body.bio;
+    if (req.body.name) res.user.name = req.body.name;
+    if (req.body.website) res.user.website = req.body.website;
+    if (req.body.role) res.user.role = req.body.role;
+    if (req.body.profilePicture) res.user.profilePicture = req.body.profilePicture;
+
     const updatedUser = await res.user.save();
+    console.log('Profile updated successfully for user:', updatedUser.username);
+    
     // Don't send password in response
     const userObject = updatedUser.toObject();
     delete userObject.password;
     res.json(userObject);
   } catch (err) {
+    console.error('Error updating profile:', err.message);
     res.status(400).json({ message: err.message });
   }
 });
@@ -179,6 +186,24 @@ router.post("/:id/favorites/:templateId", getUser, async (req, res) => {
   } catch (err) {
     console.error('Error adding template to favorites:', err.message);
     res.status(400).json({ message: err.message });
+  }
+});
+
+// Get user's uploaded templates
+router.get("/:id/templates", getUser, async (req, res) => {
+  try {
+    const Template = require('../models/Template');
+    console.log('Fetching templates for user:', res.user.username, 'ID:', res.user._id);
+    
+    // Find all templates created by this user
+    const userTemplates = await Template.find({ creator: res.user._id });
+    
+    console.log('Found', userTemplates.length, 'templates for user:', res.user.username);
+    res.json(userTemplates);
+  } catch (err) {
+    console.error('Error fetching user templates:', err.message);
+    console.error('Error stack:', err.stack);
+    res.status(500).json({ message: err.message });
   }
 });
 

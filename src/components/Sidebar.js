@@ -160,17 +160,10 @@ function Sidebar() {
         <SidebarSection>
           <SectionTitle>Library</SectionTitle>
           
-          <Link to="/favorites" style={{ textDecoration: "none" }}>
-            <SidebarOption active={isActive("/favorites").toString()}>
-              <Favorite />
-              <SidebarText>Favorites</SidebarText>
-            </SidebarOption>
-          </Link>
-          
           <Link to="/saved" style={{ textDecoration: "none" }}>
             <SidebarOption active={isActive("/saved").toString()}>
               <Bookmark />
-              <SidebarText>Saved</SidebarText>
+            <SidebarText>My Library</SidebarText>
             </SidebarOption>
           </Link>
         </SidebarSection>

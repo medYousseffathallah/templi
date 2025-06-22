@@ -195,7 +195,13 @@ router.get("/user/:userId", async (req, res) => {
       return res.status(400).json({ message: "Invalid user ID format or user not found" });
     }
     
-    const interactions = await Interaction.find({ user: userObjectId })
+    // Build query with optional interaction type filter
+    const query = { user: userObjectId };
+    if (req.query.interactionType) {
+      query.interactionType = req.query.interactionType;
+    }
+    
+    const interactions = await Interaction.find(query)
       .populate("template")
       .sort({ createdAt: -1 });
     res.json(interactions);

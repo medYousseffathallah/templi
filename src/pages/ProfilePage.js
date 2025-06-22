@@ -421,29 +421,41 @@ function ProfilePage() {
     totalDownloads: 0,
     profileCompletion: 0
   });
+  const [userTemplates, setUserTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
   const [editDialog, setEditDialog] = useState(false);
+  const [templatesDialog, setTemplatesDialog] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    role: '',
+    bio: '',
+    website: ''
+  });
+  const [saving, setSaving] = useState(false);
 
   // Mock data for demonstration
   const socialLinks = [
     {
       platform: 'GitHub',
-      url: 'https://github.com/username',
+      url: 'github.com/username',
+      fullUrl: 'https://github.com/username',
       icon: GitHub,
       color: '#333',
       verified: true
     },
     {
       platform: 'LinkedIn',
-      url: 'https://linkedin.com/in/username',
+      url: 'linkedin.com/in/username',
+      fullUrl: 'https://linkedin.com/in/username',
       icon: LinkedIn,
       color: '#0077b5',
       verified: true
     },
     {
       platform: 'Portfolio',
-      url: 'https://portfolio.com',
+      url: 'portfolio.com',
+      fullUrl: 'https://portfolio.com',
       icon: Language,
       color: '#667eea',
       verified: false
@@ -506,39 +518,123 @@ function ProfilePage() {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!currentUser) {
-        setLoading(false);
-        return;
-      }
-
       try {
-        setLoading(true);
-        const userId = currentUser._id || currentUser.id || currentUser;
+        const userId = currentUser?._id || currentUser?.id;
+        if (!userId) {
+          console.error('No user ID found');
+          return;
+        }
         
-        // Fetch user profile
+        console.log('Fetching profile for user ID:', userId);
         const profileResponse = await userApi.getProfile(userId);
         setProfile(profileResponse.data);
         
-        // Calculate profile completion
-        const completion = calculateProfileCompletion(profileResponse.data);
+        // Initialize edit form with current data
+        setEditForm({
+          name: profileResponse.data.name || currentUser.name || currentUser.username || '',
+          role: profileResponse.data.role || '',
+          bio: profileResponse.data.bio || '',
+          website: profileResponse.data.website || ''
+        });
         
-        // Mock stats - in real app, these would come from API
+        // Fetch user's templates
+        try {
+          console.log('About to fetch templates for userId:', userId);
+          console.log('Current user object:', currentUser);
+          const templatesResponse = await userApi.getUserTemplates(userId);
+          console.log('Templates response:', templatesResponse);
+          const templatesData = templatesResponse.data || templatesResponse;
+          setUserTemplates(templatesData);
+          
+          // Calculate real stats
+          const totalFavorites = templatesData.reduce((sum, template) => sum + (template.favorites || 0), 0);
+          const totalDownloads = templatesData.reduce((sum, template) => sum + (template.downloads || 0), 0);
+          
+          setStats({
+            templatesUploaded: templatesData.length,
+            totalFavorites: totalFavorites,
+            totalDownloads: totalDownloads,
+            profileCompletion: calculateProfileCompletion(profileResponse.data)
+          });
+        } catch (templatesError) {
+          console.error('Error fetching templates:', templatesError);
+          console.error('Templates error details:', {
+            status: templatesError.response?.status,
+            statusText: templatesError.response?.statusText,
+            data: templatesError.response?.data,
+            url: templatesError.config?.url
+          });
+          // Fallback to mock data if templates API fails
+          setStats({
+            templatesUploaded: 0,
+            totalFavorites: 0,
+            totalDownloads: 0,
+            profileCompletion: calculateProfileCompletion(profileResponse.data)
+          });
+        }
+        
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+        // Fallback to mock data if profile API fails
         setStats({
           templatesUploaded: 12,
           totalFavorites: 156,
           totalDownloads: 2340,
-          profileCompletion: completion
+          profileCompletion: 75
         });
-        
-      } catch (error) {
-        console.error('Error fetching profile:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProfile();
+    if (currentUser) {
+      fetchProfile();
+    }
   }, [currentUser]);
+
+  // Handle profile update
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    try {
+      const userId = currentUser?._id || currentUser?.id;
+      if (!userId) {
+        console.error('No user ID found for profile update');
+        return;
+      }
+      
+      console.log('Updating profile for user ID:', userId);
+      const updatedProfile = await userApi.updateProfile(userId, editForm);
+      setProfile(updatedProfile.data || updatedProfile);
+      setEditDialog(false);
+      // Show success message
+      console.log('Profile updated successfully');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      // Show error message
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Handle form input changes
+  const handleInputChange = (field, value) => {
+    setEditForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Handle templates section click
+  const handleTemplatesClick = () => {
+    setTemplatesDialog(true);
+  };
+
+  // Handle social link click
+  const handleSocialLinkClick = (url) => {
+    if (url && url.startsWith('http')) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   const calculateProfileCompletion = (profileData) => {
     let completion = 0;
@@ -634,7 +730,7 @@ function ProfilePage() {
 
       {/* Stats Grid */}
       <StatsGrid>
-        <StatCard>
+        <StatCard onClick={handleTemplatesClick} style={{ cursor: 'pointer' }}>
           <StatContent>
             <StatIcon color="#667eea">
               <Upload />
@@ -712,7 +808,12 @@ function ProfilePage() {
         </SectionHeader>
         <SocialLinksGrid>
           {socialLinks.map((link, index) => (
-            <SocialLink key={index} className={link.verified ? 'verified' : ''}>
+            <SocialLink 
+              key={index} 
+              className={link.verified ? 'verified' : ''}
+              onClick={() => handleSocialLinkClick(link.fullUrl)}
+              style={{ cursor: 'pointer' }}
+            >
               <SocialIcon color={link.color}>
                 <link.icon />
               </SocialIcon>
@@ -814,13 +915,15 @@ function ProfilePage() {
             <TextField
               fullWidth
               label="Display Name"
-              defaultValue={profile?.name || currentUser.name}
+              value={editForm.name}
+              onChange={(e) => handleInputChange('name', e.target.value)}
               margin="normal"
             />
             <TextField
               fullWidth
               label="Role/Title"
-              defaultValue={profile?.role || ''}
+              value={editForm.role}
+              onChange={(e) => handleInputChange('role', e.target.value)}
               margin="normal"
             />
             <TextField
@@ -828,22 +931,71 @@ function ProfilePage() {
               label="Bio"
               multiline
               rows={4}
-              defaultValue={profile?.bio || ''}
+              value={editForm.bio}
+              onChange={(e) => handleInputChange('bio', e.target.value)}
               margin="normal"
             />
             <TextField
               fullWidth
               label="Website/Portfolio"
-              defaultValue={profile?.website || ''}
+              value={editForm.website}
+              onChange={(e) => handleInputChange('website', e.target.value)}
               margin="normal"
             />
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={() => setEditDialog(false)}>
-            Save Changes
+          <Button onClick={() => setEditDialog(false)} disabled={saving}>Cancel</Button>
+          <Button 
+            variant="contained" 
+            onClick={handleSaveProfile}
+            disabled={saving}
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Templates Dialog */}
+      <Dialog open={templatesDialog} onClose={() => setTemplatesDialog(false)} maxWidth="lg" fullWidth>
+        <DialogTitle>
+          My Templates ({stats.templatesUploaded})
+        </DialogTitle>
+        <DialogContent>
+          <Box py={2}>
+            {userTemplates.length > 0 ? (
+              <Box display="grid" gridTemplateColumns="repeat(auto-fill, minmax(300px, 1fr))" gap={2}>
+                {userTemplates.map((template, index) => (
+                  <Box key={index} p={2} border={1} borderColor="grey.300" borderRadius={2}>
+                    <Typography variant="h6" gutterBottom>{template.title}</Typography>
+                    <Typography variant="body2" color="textSecondary" gutterBottom>
+                      {template.description}
+                    </Typography>
+                    <Box display="flex" justifyContent="space-between" mt={2}>
+                      <Typography variant="body2">
+                        ❤️ {template.favorites || 0} favorites
+                      </Typography>
+                      <Typography variant="body2">
+                        ⬇️ {template.downloads || 0} downloads
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            ) : (
+              <Box textAlign="center" py={4}>
+                <Typography variant="h6" color="textSecondary">
+                  No templates uploaded yet
+                </Typography>
+                <Typography variant="body2" color="textSecondary" mt={1}>
+                  Start creating and sharing your amazing templates!
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTemplatesDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </ProfileContainer>

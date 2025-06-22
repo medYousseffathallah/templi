@@ -8,6 +8,7 @@ import MobileNavigation from "./components/MobileNavigation";
 import ExplorePage from "./pages/ExplorePage";
 import UploadPage from "./pages/UploadPage";
 import FavoritesPage from "./pages/FavoritesPage";
+import LibraryPage from "./pages/LibraryPage";
 import TrendingPage from "./pages/TrendingPage";
 import ProfilePage from "./pages/ProfilePage";
 import styled from "styled-components";
@@ -56,7 +57,7 @@ function App() {
             />
             <Route
               path="/saved"
-              element={<PageWrapper>Saved Templates</PageWrapper>}
+              element={<LibraryPage />}
             />
             <Route
               path="/trending"

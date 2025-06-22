@@ -117,6 +117,23 @@ export const userApi = {
     
     return api.delete(`/users/${userIdStr}/favorites/${templateId}`);
   },
+
+  // Get user's uploaded templates
+  getUserTemplates: (userId) => {
+    // Ensure userId is a string and properly formatted
+    let userIdStr;
+    if (userId && typeof userId === 'object' && userId._id) {
+      // If userId is an object with _id property, use that
+      userIdStr = userId._id.toString();
+    } else {
+      // Otherwise use the userId directly
+      userIdStr = userId.toString();
+    }
+    
+    console.log('Getting user templates - using userId:', userIdStr, 'type:', typeof userIdStr);
+    
+    return api.get(`/users/${userIdStr}/templates`);
+  },
 };
 
 // Interaction API calls
@@ -290,6 +307,56 @@ export const interactionApi = {
       }
       
       // Otherwise, rethrow the error
+      throw err;
+    });
+  },
+
+  // Get user interactions by type
+  getUserInteractions: (userId, interactionType) => {
+    // Ensure userId is a string and properly formatted
+    let userIdStr;
+    if (userId && typeof userId === 'object' && userId._id) {
+      userIdStr = userId._id.toString();
+    } else {
+      userIdStr = userId.toString();
+    }
+    
+    console.log('Getting user interactions - userId:', userIdStr, 'type:', interactionType);
+    
+    const params = interactionType ? { interactionType } : {};
+    return api.get(`/interactions/user/${userIdStr}`, { params });
+  },
+
+  // Record download interaction
+  downloadTemplate: (userId, templateId) => {
+    // Ensure userId is a string and properly formatted
+    let userIdStr;
+    if (userId && typeof userId === 'object' && userId._id) {
+      userIdStr = userId._id.toString();
+    } else {
+      userIdStr = userId.toString();
+    }
+    
+    console.log('Download template - using userId:', userIdStr, 'type:', typeof userIdStr);
+    
+    return api.post("/interactions", { 
+      userId: userIdStr, 
+      templateId, 
+      interactionType: "download",
+      username: userId && typeof userId === 'object' ? userId.username : undefined,
+      email: userId && typeof userId === 'object' ? userId.email : undefined
+    })
+    .then(response => {
+      console.log('Download interaction recorded successfully');
+      return response;
+    })
+    .catch(err => {
+      console.log('Download error response:', err.response?.data);
+      // Downloads can be recorded multiple times, so don't treat duplicates as errors
+      if (err.response?.data?.message === "Interaction already exists") {
+        console.log('Download interaction already exists, treating as success');
+        return { data: { message: "Interaction already exists" } };
+      }
       throw err;
     });
   },

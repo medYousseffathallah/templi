@@ -14,7 +14,7 @@ const interactionSchema = new mongoose.Schema(
     },
     interactionType: {
       type: String,
-      enum: ["like", "dislike", "favorite", "view"],
+      enum: ["like", "dislike", "favorite", "view", "download"],
       required: true,
     },
     createdAt: {
@@ -28,7 +28,7 @@ const interactionSchema = new mongoose.Schema(
 );
 
 // Create a compound index to ensure a user can only have one like/dislike/favorite per template
-// But allow multiple view interactions
+// But allow multiple view and download interactions
 interactionSchema.index(
   { user: 1, template: 1, interactionType: 1 },
   { 

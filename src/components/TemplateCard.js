@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import styled from "styled-components";
 import { Close, Star, Favorite, Info, ChevronLeft, ChevronRight, Fullscreen, FullscreenExit, Verified, Download, Upload, GetApp } from "@mui/icons-material";
+import { useAuth } from "../context/AuthContext";
+import { interactionApi } from "../services/api";
 
 const Card = styled.div`
   position: relative;
@@ -36,11 +38,13 @@ const MediaItem = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background-size: cover;
+  background-size: ${props => props.$expanded ? 'contain' : 'cover'};
   background-position: center;
-  transition: filter 0.3s ease;
+  background-repeat: no-repeat;
+  background-color: ${props => props.$expanded ? '#000' : 'transparent'};
+  transition: all 0.3s ease;
   opacity: ${props => props.$isActive ? 1 : 0};
-  transition: opacity 0.3s ease;
+  cursor: ${props => props.$expanded ? 'default' : 'pointer'};
 `;
 
 const VideoElement = styled.video`
@@ -485,6 +489,7 @@ const TemplateCard = ({
   showRemoveButton = false,
   onRemoveFromFavorites,
 }) => {
+  const { currentUser } = useAuth();
   const [touchStart, setTouchStart] = useState({ x: 0, y: 0 });
   const [touchEnd, setTouchEnd] = useState({ x: 0, y: 0 });
   const [swiping, setSwiping] = useState(false);
@@ -496,6 +501,7 @@ const TemplateCard = ({
   const [cardTransform, setCardTransform] = useState({ x: 0, rotate: 0, blur: 0 });
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [isVideoExpanded, setIsVideoExpanded] = useState(false);
+  const [isImageExpanded, setIsImageExpanded] = useState(false);
   
   // Create media files array from template's imageUrls and videoUrl
   const mediaFiles = useMemo(() => {
@@ -578,6 +584,8 @@ const TemplateCard = ({
     e.stopPropagation();
     if (mediaFiles.length > 1) {
       setCurrentMediaIndex(prev => prev > 0 ? prev - 1 : mediaFiles.length - 1);
+      setIsVideoExpanded(false);
+      setIsImageExpanded(false);
     }
   };
   
@@ -585,12 +593,16 @@ const TemplateCard = ({
     e.stopPropagation();
     if (mediaFiles.length > 1) {
       setCurrentMediaIndex(prev => prev < mediaFiles.length - 1 ? prev + 1 : 0);
+      setIsVideoExpanded(false);
+      setIsImageExpanded(false);
     }
   };
   
   const goToMediaIndex = (index, e) => {
     e.stopPropagation();
     setCurrentMediaIndex(index);
+    setIsVideoExpanded(false);
+    setIsImageExpanded(false);
   };
   
   // Determine if current media is video
@@ -842,9 +854,18 @@ const TemplateCard = ({
     }
   };
 
-  const handleDownload = (e) => {
+  const handleDownload = async (e) => {
     e.stopPropagation();
     if (template.githubLink) {
+      // Record download interaction if user is logged in
+      if (currentUser) {
+        try {
+          await interactionApi.downloadTemplate(currentUser, template._id);
+        } catch (error) {
+          console.error('Failed to record download interaction:', error);
+          // Don't prevent the download if tracking fails
+        }
+      }
       window.open(template.githubLink, '_blank', 'noopener,noreferrer');
     } else {
       // Fallback - could show a message or redirect to a default repository
@@ -896,10 +917,12 @@ const TemplateCard = ({
             <MediaItem
               key={index}
               $isActive={isActive}
+              $expanded={isImageExpanded}
               style={{
                 backgroundImage: `url(${media.url})`,
                 filter: `blur(${cardTransform.blur}px)`,
               }}
+              onClick={() => !isImageExpanded && setIsImageExpanded(true)}
             />
           );
         })}
@@ -937,6 +960,16 @@ const TemplateCard = ({
             aria-label={isVideoExpanded ? "Collapse video" : "Expand video"}
           >
             {isVideoExpanded ? <FullscreenExit fontSize="small" /> : <Fullscreen fontSize="small" />}
+          </ExpandButton>
+        )}
+        
+        {/* Expand Button for Images */}
+        {mediaFiles[currentMediaIndex] && mediaFiles[currentMediaIndex].type === 'image' && (
+          <ExpandButton 
+            onClick={() => setIsImageExpanded(!isImageExpanded)}
+            aria-label={isImageExpanded ? "Collapse image" : "Expand image"}
+          >
+            {isImageExpanded ? <FullscreenExit fontSize="small" /> : <Fullscreen fontSize="small" />}
           </ExpandButton>
         )}
       </MediaContainer>
