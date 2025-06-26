@@ -101,11 +101,11 @@ router.post("/", async (req, res) => {
         
         // Revert previous interaction stats
         if (existingInteraction.interactionType === "like") {
-          await Template.findByIdAndUpdate(templateObjectId, { $inc: { likes: -1 } });
+          await Template.findOneAndUpdate({ _id: templateObjectId }, { $inc: { likes: -1 } });
         } else if (existingInteraction.interactionType === "dislike") {
-          await Template.findByIdAndUpdate(templateObjectId, { $inc: { dislikes: -1 } });
+          await Template.findOneAndUpdate({ _id: templateObjectId }, { $inc: { dislikes: -1 } });
         } else if (existingInteraction.interactionType === "favorite") {
-          await User.findByIdAndUpdate(userObjectId, {
+          await User.findOneAndUpdate({ _id: userObjectId }, {
             $pull: { favorites: templateObjectId },
           });
         }
@@ -134,12 +134,12 @@ router.post("/", async (req, res) => {
     // Update template stats based on new interaction type (only if new or updated)
     if (!isUpdate || existingInteraction.interactionType !== interactionType) {
       if (interactionType === "like") {
-        await Template.findByIdAndUpdate(templateObjectId, { $inc: { likes: 1 } });
+        await Template.findOneAndUpdate({ _id: templateObjectId }, { $inc: { likes: 1 } });
       } else if (interactionType === "dislike") {
-        await Template.findByIdAndUpdate(templateObjectId, { $inc: { dislikes: 1 } });
+        await Template.findOneAndUpdate({ _id: templateObjectId }, { $inc: { dislikes: 1 } });
       } else if (interactionType === "favorite") {
         // Add to user's favorites if not already there
-        await User.findByIdAndUpdate(userObjectId, {
+        await User.findOneAndUpdate({ _id: userObjectId }, {
           $addToSet: { favorites: templateObjectId },
         });
       }
@@ -310,7 +310,7 @@ router.delete("/:id", async (req, res) => {
       return res.status(400).json({ message: "Invalid interaction ID format" });
     }
     
-    const interaction = await Interaction.findById(interactionObjectId);
+    const interaction = await Interaction.findOne({ _id: interactionObjectId });
 
     if (!interaction) {
       return res.status(404).json({ message: "Interaction not found" });
@@ -318,16 +318,16 @@ router.delete("/:id", async (req, res) => {
 
     // Update template stats based on interaction type
     if (interaction.interactionType === "like") {
-      await Template.findByIdAndUpdate(interaction.template, {
+      await Template.findOneAndUpdate({ _id: interaction.template }, {
         $inc: { likes: -1 },
       });
     } else if (interaction.interactionType === "dislike") {
-      await Template.findByIdAndUpdate(interaction.template, {
+      await Template.findOneAndUpdate({ _id: interaction.template }, {
         $inc: { dislikes: -1 },
       });
     } else if (interaction.interactionType === "favorite") {
       // Remove from user's favorites
-      await User.findByIdAndUpdate(interaction.user, {
+      await User.findOneAndUpdate({ _id: interaction.user }, {
         $pull: { favorites: interaction.template },
       });
     }

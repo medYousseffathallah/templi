@@ -101,7 +101,7 @@ router.get("/:id/favorites", getUser, async (req, res) => {
     console.log('Fetching favorites for user:', res.user.username, 'ID:', res.user._id);
     
     // Use the user from getUser middleware and populate favorites
-    const userWithFavorites = await User.findById(res.user._id).populate("favorites");
+    const userWithFavorites = await User.findOne({ _id: res.user._id }).populate("favorites");
     
     if (!userWithFavorites) {
       console.error('User not found when fetching favorites:', res.user._id);
@@ -131,7 +131,7 @@ router.post("/:id/favorites/:templateId", getUser, async (req, res) => {
     if (mongoose.Types.ObjectId.isValid(templateId)) {
       templateObjectId = new mongoose.Types.ObjectId(templateId);
       console.log('Template ID converted to ObjectId:', templateId, '->', templateObjectId);
-      template = await Template.findById(templateObjectId);
+      template = await Template.findOne({ _id: templateObjectId });
     }
     
     // If not found by ObjectId, try to find by title
@@ -221,7 +221,7 @@ router.delete("/:id/favorites/:templateId", getUser, async (req, res) => {
     if (mongoose.Types.ObjectId.isValid(templateId)) {
       templateObjectId = new mongoose.Types.ObjectId(templateId);
       console.log('Template ID converted to ObjectId for removal:', templateId, '->', templateObjectId);
-      template = await Template.findById(templateObjectId);
+      template = await Template.findOne({ _id: templateObjectId });
     }
     
     // If not found by ObjectId, try to find by title
@@ -284,7 +284,7 @@ async function getUser(req, res, next) {
       try {
         const userObjectId = new mongoose.Types.ObjectId(userId);
         console.log('User ID converted to ObjectId:', userId, '->', userObjectId);
-        user = await User.findById(userObjectId);
+        user = await User.findOne({ _id: userObjectId });
         console.log('User found by ObjectId:', user ? user.username : 'not found');
       } catch (err) {
         console.log('Error converting to ObjectId or finding user:', err.message);

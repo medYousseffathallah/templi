@@ -23,11 +23,13 @@ mongoose
 const templateRoutes = require("./routes/templates");
 const userRoutes = require("./routes/users");
 const interactionRoutes = require("./routes/interactions");
+const reviewRoutes = require("./routes/reviews");
 
 // Use routes
 app.use("/api/templates", templateRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/interactions", interactionRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 // Basic route for testing
 app.get("/", (req, res) => {

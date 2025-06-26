@@ -5,7 +5,9 @@ const Template = require("../models/Template");
 // Get all templates
 router.get("/", async (req, res) => {
   try {
-    const templates = await Template.find().sort({ createdAt: -1 });
+    const templates = await Template.find()
+      .populate('creator', 'name username email')
+      .sort({ createdAt: -1 });
     res.json(templates);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -68,6 +70,7 @@ router.get("/discover", async (req, res) => {
 
     // Execute query with pagination
     const templates = await Template.find(filter)
+      .populate('creator', 'name username email')
       .limit(limit * 1)
       .skip((page - 1) * limit)
       .sort(sortOption);
@@ -397,7 +400,7 @@ router.get("/debug/interactions", async (req, res) => {
 async function getTemplate(req, res, next) {
   let template;
   try {
-    template = await Template.findById(req.params.id);
+    template = await Template.findOne({ _id: req.params.id });
     if (template == null) {
       return res.status(404).json({ message: "Template not found" });
     }

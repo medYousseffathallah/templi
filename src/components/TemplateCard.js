@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import styled from "styled-components";
+import { useNavigate } from 'react-router-dom';
 import { Close, Star, Favorite, Info, ChevronLeft, ChevronRight, Fullscreen, FullscreenExit, Verified, Download, Upload, GetApp } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 import { interactionApi } from "../services/api";
@@ -329,6 +330,20 @@ const UserName = styled.span`
   font-size: 14px;
   font-weight: 600;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  padding: 2px 4px;
+  
+  &:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
 `;
 
 const VerifiedBadge = styled.div`
@@ -490,6 +505,7 @@ const TemplateCard = ({
   onRemoveFromFavorites,
 }) => {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const [touchStart, setTouchStart] = useState({ x: 0, y: 0 });
   const [touchEnd, setTouchEnd] = useState({ x: 0, y: 0 });
   const [swiping, setSwiping] = useState(false);
@@ -531,6 +547,15 @@ const TemplateCard = ({
   const cardRef = useRef(null);
   const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 500;
   
+  // Handle user name click to navigate to profile
+  const handleUserClick = (e) => {
+    e.stopPropagation();
+    const userId = template.creator?._id || template.creator?.id || template.createdBy?._id || template.createdBy?.id || template.userId;
+    if (userId) {
+      navigate(`/profile/${userId}`);
+    }
+  };
+
   // Function to limit description to 15 words
   const getLimitedDescription = (text) => {
     if (!text) return '';
@@ -990,56 +1015,57 @@ const TemplateCard = ({
 
       <CardContent>
         <Title>{template.title}</Title>
-        <Description className="description-text" $showDetails={showDetails}>
-          {showDetails ? template.description : getLimitedDescription(template.description)}
-        </Description>
         
-        {!showDetails && template.description && template.description.split(' ').length > 15 && (
-          <ReadMoreButton onClick={handleReadMore} aria-label="Read full description">
-            Read More
-          </ReadMoreButton>
-        )}
-        
-        <UserTrustInfo $show={showDetails}>
-          <UserInfoHeader>
-            <UserName>{template.createdBy?.name || template.author || 'Anonymous Creator'}</UserName>
-            <VerifiedBadge>
-              <Verified sx={{ fontSize: '16px' }} />
-            </VerifiedBadge>
-          </UserInfoHeader>
-          <TrustMetrics>
-            <TrustMetric>
-              <MetricIcon>
-                <Upload sx={{ fontSize: '14px' }} />
-              </MetricIcon>
-              <span>{template.createdBy?.templatesCount || '12'} Templates</span>
-            </TrustMetric>
-            <TrustMetric>
-              <MetricIcon>
-                <Download sx={{ fontSize: '14px' }} />
-              </MetricIcon>
-              <span>{template.downloadCount || '2.3k'} Downloads</span>
-            </TrustMetric>
-            <TrustMetric>
-              <MetricIcon>
-                <Star sx={{ fontSize: '14px' }} />
-              </MetricIcon>
-              <span>{template.createdBy?.rating || '4.9'} Rating</span>
-            </TrustMetric>
-            <TrustMetric>
-              <MetricIcon>
-                <Favorite sx={{ fontSize: '14px' }} />
-              </MetricIcon>
-              <span>{template.favoriteCount || '156'} Favorites</span>
-            </TrustMetric>
-          </TrustMetrics>
-        </UserTrustInfo>
+        {showDetails && (
+          <>
+            <Description className="description-text" $showDetails={showDetails}>
+              {template.description}
+            </Description>
+            
+            <UserTrustInfo $show={showDetails}>
+              <UserInfoHeader>
+                <UserName onClick={handleUserClick}>
+                  {template.creator?.name || template.creator?.username || template.createdBy?.name || template.author || 'Anonymous Creator'}
+                </UserName>
+                <VerifiedBadge>
+                  <Verified sx={{ fontSize: '16px' }} />
+                </VerifiedBadge>
+              </UserInfoHeader>
+              <TrustMetrics>
+                <TrustMetric>
+                  <MetricIcon>
+                    <Upload sx={{ fontSize: '14px' }} />
+                  </MetricIcon>
+                  <span>{template.creator?.templatesCount || template.createdBy?.templatesCount || '12'} Templates</span>
+                </TrustMetric>
+                <TrustMetric>
+                  <MetricIcon>
+                    <Download sx={{ fontSize: '14px' }} />
+                  </MetricIcon>
+                  <span>{template.downloadCount || '2.3k'} Downloads</span>
+                </TrustMetric>
+                <TrustMetric>
+                  <MetricIcon>
+                    <Star sx={{ fontSize: '14px' }} />
+                  </MetricIcon>
+                  <span>{template.creator?.rating || template.createdBy?.rating || '4.9'} Rating</span>
+                </TrustMetric>
+                <TrustMetric>
+                  <MetricIcon>
+                    <Favorite sx={{ fontSize: '14px' }} />
+                  </MetricIcon>
+                  <span>{template.favoriteCount || '156'} Favorites</span>
+                </TrustMetric>
+              </TrustMetrics>
+            </UserTrustInfo>
 
-        <TagsContainer>
-          {template.tags.map((tag, index) => (
-            <Tag key={index}>{tag}</Tag>
-          ))}
-        </TagsContainer>
+            <TagsContainer>
+              {template.tags.map((tag, index) => (
+                <Tag key={index}>{tag}</Tag>
+              ))}
+            </TagsContainer>
+          </>
+        )}
         
         <ButtonsContainer>
           {showRemoveButton ? (

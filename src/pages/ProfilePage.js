@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import styled from "styled-components";
 import { useAuth } from "../context/AuthContext";
 import { userApi, templateApi } from "../services/api";
@@ -18,7 +19,10 @@ import {
   CheckCircle,
   TrendingUp,
   EmojiEvents,
-  Timeline
+  Timeline,
+  Add,
+  Send,
+  RateReview
 } from "@mui/icons-material";
 import {
   Avatar,
@@ -37,7 +41,11 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from "@mui/material";
 import { CircularProgress } from "@mui/material";
 
@@ -414,6 +422,8 @@ const ReviewText = styled.p`
 
 function ProfilePage() {
   const { currentUser } = useAuth();
+  const { userId } = useParams();
+  const isOwnProfile = !userId || userId === currentUser?._id;
   const [profile, setProfile] = useState(null);
   const [stats, setStats] = useState({
     templatesUploaded: 0,
@@ -433,34 +443,43 @@ function ProfilePage() {
     website: ''
   });
   const [saving, setSaving] = useState(false);
+  const [reviewDialog, setReviewDialog] = useState(false);
+  const [socialLinksDialog, setSocialLinksDialog] = useState(false);
+  const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
+  const [socialLinksForm, setSocialLinksForm] = useState({
+    github: '',
+    linkedin: '',
+    portfolio: ''
+  });
+  const [userReviews, setUserReviews] = useState([]);
 
-  // Mock data for demonstration
-  const socialLinks = [
+  // Social links with real data
+  const [socialLinks, setSocialLinks] = useState([
     {
       platform: 'GitHub',
-      url: 'github.com/username',
-      fullUrl: 'https://github.com/username',
+      url: profile?.socialLinks?.github || '',
+      fullUrl: profile?.socialLinks?.github ? `https://github.com/${profile.socialLinks.github}` : '',
       icon: GitHub,
       color: '#333',
-      verified: true
+      verified: !!profile?.socialLinks?.github
     },
     {
       platform: 'LinkedIn',
-      url: 'linkedin.com/in/username',
-      fullUrl: 'https://linkedin.com/in/username',
+      url: profile?.socialLinks?.linkedin || '',
+      fullUrl: profile?.socialLinks?.linkedin ? `https://linkedin.com/in/${profile.socialLinks.linkedin}` : '',
       icon: LinkedIn,
       color: '#0077b5',
-      verified: true
+      verified: !!profile?.socialLinks?.linkedin
     },
     {
       platform: 'Portfolio',
-      url: 'portfolio.com',
-      fullUrl: 'https://portfolio.com',
+      url: profile?.socialLinks?.portfolio || '',
+      fullUrl: profile?.socialLinks?.portfolio || '',
       icon: Language,
       color: '#667eea',
-      verified: false
+      verified: !!profile?.socialLinks?.portfolio
     }
-  ];
+  ]);
 
   const achievements = [
     { name: 'Top Creator', icon: EmojiEvents, color: '#ffd700' },
@@ -468,65 +487,89 @@ function ProfilePage() {
     { name: 'Community Favorite', icon: Favorite, color: '#e74c3c' }
   ];
 
-  const activityTimeline = [
-    {
-      type: 'upload',
-      title: 'Uploaded new template "Modern Dashboard"',
-      date: '2 days ago',
-      icon: Upload,
-      color: '#28a745'
-    },
-    {
-      type: 'achievement',
-      title: 'Earned "Top Creator" badge',
-      date: '1 week ago',
-      icon: EmojiEvents,
-      color: '#ffd700'
-    },
-    {
-      type: 'milestone',
-      title: 'Reached 1000 total downloads',
-      date: '2 weeks ago',
-      icon: Download,
-      color: '#667eea'
-    },
-    {
-      type: 'joined',
-      title: 'Joined Templi community',
-      date: '3 months ago',
-      icon: CalendarToday,
-      color: '#6c757d'
+  // Real activity timeline based on user data
+  const getActivityTimeline = () => {
+    const activities = [];
+    
+    // Add recent template uploads
+    if (userTemplates.length > 0) {
+      userTemplates.slice(0, 3).forEach(template => {
+        activities.push({
+          type: 'upload',
+          title: `Uploaded template "${template.title}"`,
+          date: template.createdAt ? new Date(template.createdAt).toLocaleDateString() : 'Recently',
+          icon: Upload,
+          color: '#28a745'
+        });
+      });
     }
-  ];
+    
+    // Add join date
+    if (profile?.createdAt || currentUser?.createdAt) {
+      const joinDate = new Date(profile?.createdAt || currentUser?.createdAt);
+      activities.push({
+        type: 'joined',
+        title: 'Joined Templi community',
+        date: joinDate.toLocaleDateString(),
+        icon: CalendarToday,
+        color: '#6c757d'
+      });
+    }
+    
+    // Add milestone achievements
+    if (stats.totalDownloads >= 1000) {
+      activities.push({
+        type: 'milestone',
+        title: `Reached ${stats.totalDownloads} total downloads`,
+        date: 'Recently',
+        icon: Download,
+        color: '#667eea'
+      });
+    }
+    
+    return activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+  };
 
-  const reviews = [
-    {
-      reviewer: 'Sarah Johnson',
-      avatar: '/api/placeholder/32/32',
-      rating: 5,
-      date: '1 week ago',
-      text: 'Amazing templates! The quality and attention to detail is outstanding. Highly recommended for any project.'
-    },
-    {
-      reviewer: 'Mike Chen',
-      avatar: '/api/placeholder/32/32',
-      rating: 5,
-      date: '2 weeks ago',
-      text: 'Professional work and great communication. The templates saved me hours of development time.'
+  // Initialize reviews state
+  const [reviews, setReviews] = useState([]);
+
+  // Fetch reviews for the user
+  const fetchReviews = async (targetUserId) => {
+    try {
+      const response = await fetch(`/api/reviews/user/${targetUserId}`);
+      if (response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const reviewsData = await response.json();
+          setReviews(reviewsData);
+        } else {
+          console.warn('Reviews API returned non-JSON response, likely endpoint not available');
+          setReviews([]); // Set empty array as fallback
+        }
+      } else {
+        console.warn(`Reviews API returned status ${response.status}`);
+        setReviews([]);
+      }
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+      setReviews([]); // Set empty array as fallback
     }
-  ];
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const userId = currentUser?._id || currentUser?.id;
-        if (!userId) {
+        const targetUserId = userId || currentUser?._id || currentUser?.id;
+        if (!targetUserId) {
           console.error('No user ID found');
           return;
         }
         
-        console.log('Fetching profile for user ID:', userId);
-        const profileResponse = await userApi.getProfile(userId);
+        console.log('Fetching profile for user ID:', targetUserId);
+        
+        // Fetch reviews for this user
+        await fetchReviews(targetUserId);
+        const profileResponse = await userApi.getProfile(targetUserId);
         setProfile(profileResponse.data);
         
         // Initialize edit form with current data
@@ -537,11 +580,46 @@ function ProfilePage() {
           website: profileResponse.data.website || ''
         });
         
+        // Initialize social links form
+        setSocialLinksForm({
+          github: profileResponse.data.socialLinks?.github || '',
+          linkedin: profileResponse.data.socialLinks?.linkedin || '',
+          portfolio: profileResponse.data.socialLinks?.portfolio || ''
+        });
+        
+        // Update social links state
+        setSocialLinks([
+          {
+            platform: 'GitHub',
+            url: profileResponse.data.socialLinks?.github || '',
+            fullUrl: profileResponse.data.socialLinks?.github ? `https://github.com/${profileResponse.data.socialLinks.github}` : '',
+            icon: GitHub,
+            color: '#333',
+            verified: !!profileResponse.data.socialLinks?.github
+          },
+          {
+            platform: 'LinkedIn',
+            url: profileResponse.data.socialLinks?.linkedin || '',
+            fullUrl: profileResponse.data.socialLinks?.linkedin ? `https://linkedin.com/in/${profileResponse.data.socialLinks.linkedin}` : '',
+            icon: LinkedIn,
+            color: '#0077b5',
+            verified: !!profileResponse.data.socialLinks?.linkedin
+          },
+          {
+            platform: 'Portfolio',
+            url: profileResponse.data.socialLinks?.portfolio || '',
+            fullUrl: profileResponse.data.socialLinks?.portfolio || '',
+            icon: Language,
+            color: '#667eea',
+            verified: !!profileResponse.data.socialLinks?.portfolio
+          }
+        ]);
+        
         // Fetch user's templates
         try {
-          console.log('About to fetch templates for userId:', userId);
+          console.log('About to fetch templates for userId:', targetUserId);
           console.log('Current user object:', currentUser);
-          const templatesResponse = await userApi.getUserTemplates(userId);
+          const templatesResponse = await userApi.getUserTemplates(targetUserId);
           console.log('Templates response:', templatesResponse);
           const templatesData = templatesResponse.data || templatesResponse;
           setUserTemplates(templatesData);
@@ -587,10 +665,10 @@ function ProfilePage() {
       }
     };
 
-    if (currentUser) {
+    if (currentUser || userId) {
       fetchProfile();
     }
-  }, [currentUser]);
+  }, [currentUser, userId]);
 
   // Handle profile update
   const handleSaveProfile = async () => {
@@ -633,6 +711,103 @@ function ProfilePage() {
   const handleSocialLinkClick = (url) => {
     if (url && url.startsWith('http')) {
       window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
+  
+  // Handle review submission
+  const handleSubmitReview = async () => {
+    if (!newReview.comment.trim()) return;
+    
+    try {
+      const targetUserId = userId || profile?._id;
+      if (!targetUserId) {
+        console.error('No target user ID found');
+        return;
+      }
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No authentication token found');
+        return;
+      }
+      
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          reviewedUser: targetUserId,
+          rating: newReview.rating,
+          comment: newReview.comment
+        })
+      });
+      
+      if (response.ok) {
+        const newReviewData = await response.json();
+        setReviews(prev => [newReviewData, ...prev]);
+        setNewReview({ rating: 5, comment: '' });
+        setReviewDialog(false);
+      } else {
+        const errorData = await response.json();
+        console.error('Error submitting review:', errorData.message);
+        alert(errorData.message || 'Failed to submit review');
+      }
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      alert('Failed to submit review');
+    }
+  };
+  
+  // Handle social links update
+  const handleUpdateSocialLinks = async () => {
+    setSaving(true);
+    try {
+      const userId = currentUser?._id || currentUser?.id;
+      if (!userId) {
+        console.error('No user ID found for social links update');
+        return;
+      }
+      
+      const updatedProfile = await userApi.updateProfile(userId, {
+        socialLinks: socialLinksForm
+      });
+      
+      // Update local state
+      setSocialLinks([
+        {
+          platform: 'GitHub',
+          url: socialLinksForm.github,
+          fullUrl: socialLinksForm.github ? `https://github.com/${socialLinksForm.github}` : '',
+          icon: GitHub,
+          color: '#333',
+          verified: !!socialLinksForm.github
+        },
+        {
+          platform: 'LinkedIn',
+          url: socialLinksForm.linkedin,
+          fullUrl: socialLinksForm.linkedin ? `https://linkedin.com/in/${socialLinksForm.linkedin}` : '',
+          icon: LinkedIn,
+          color: '#0077b5',
+          verified: !!socialLinksForm.linkedin
+        },
+        {
+          platform: 'Portfolio',
+          url: socialLinksForm.portfolio,
+          fullUrl: socialLinksForm.portfolio,
+          icon: Language,
+          color: '#667eea',
+          verified: !!socialLinksForm.portfolio
+        }
+      ]);
+      
+      setSocialLinksDialog(false);
+      console.log('Social links updated successfully');
+    } catch (error) {
+      console.error('Error updating social links:', error);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -719,12 +894,14 @@ function ProfilePage() {
             </Box>
           </ProfileDetails>
           
-          <IconButton 
-            onClick={() => setEditDialog(true)}
-            sx={{ color: 'white', alignSelf: 'flex-start' }}
-          >
-            <Edit />
-          </IconButton>
+          {isOwnProfile && (
+            <IconButton 
+              onClick={() => setEditDialog(true)}
+              sx={{ color: 'white', alignSelf: 'flex-start' }}
+            >
+              <Edit />
+            </IconButton>
+          )}
         </ProfileInfo>
       </ProfileHeader>
 
@@ -802,9 +979,16 @@ function ProfilePage() {
       <SectionCard>
         <SectionHeader>
           <SectionTitle>Verified Social & Portfolio Links</SectionTitle>
-          <Button startIcon={<LinkIcon />} variant="outlined" size="small">
-            Add Link
-          </Button>
+          {isOwnProfile && (
+            <Button 
+              startIcon={<Edit />} 
+              variant="outlined" 
+              size="small"
+              onClick={() => setSocialLinksDialog(true)}
+            >
+              Edit Links
+            </Button>
+          )}
         </SectionHeader>
         <SocialLinksGrid>
           {socialLinks.map((link, index) => (
@@ -833,9 +1017,11 @@ function ProfilePage() {
       <SectionCard>
         <SectionHeader>
           <SectionTitle>About</SectionTitle>
-          <IconButton size="small" onClick={() => setEditMode(!editMode)}>
-            <Edit />
-          </IconButton>
+          {isOwnProfile && (
+            <IconButton size="small" onClick={() => setEditMode(!editMode)}>
+              <Edit />
+            </IconButton>
+          )}
         </SectionHeader>
         <BioSection>
           <BioText>
@@ -865,7 +1051,7 @@ function ProfilePage() {
           <SectionTitle>Recent Activity</SectionTitle>
         </SectionHeader>
         <ActivityTimeline>
-          {activityTimeline.map((item, index) => (
+          {getActivityTimeline().map((item, index) => (
             <TimelineItem key={index}>
               <TimelineIcon color={item.color}>
                 <item.icon sx={{ fontSize: '1.2rem' }} />
@@ -883,32 +1069,48 @@ function ProfilePage() {
       <SectionCard>
         <SectionHeader>
           <SectionTitle>Community Reviews</SectionTitle>
-          <Box display="flex" alignItems="center" gap={1}>
-            <Rating value={4.9} precision={0.1} readOnly size="small" />
-            <Typography variant="body2" color="textSecondary">
-              4.9 (23 reviews)
-            </Typography>
+          <Box display="flex" alignItems="center" gap={2}>
+            <Box display="flex" alignItems="center" gap={1}>
+              <Rating value={4.9} precision={0.1} readOnly size="small" />
+              <Typography variant="body2" color="textSecondary">
+                4.9 ({reviews.length} reviews)
+              </Typography>
+            </Box>
+            {!isOwnProfile && (
+              <Button 
+                startIcon={<RateReview />} 
+                variant="outlined" 
+                size="small"
+                onClick={() => setReviewDialog(true)}
+              >
+                Write Review
+              </Button>
+            )}
           </Box>
         </SectionHeader>
         <ReviewsSection>
-          {reviews.map((review, index) => (
-            <ReviewItem key={index}>
-              <ReviewHeader>
-                <ReviewerAvatar src={review.avatar} alt={review.reviewer} />
-                <ReviewerInfo>
-                  <ReviewerName>{review.reviewer}</ReviewerName>
-                  <ReviewDate>{review.date}</ReviewDate>
-                </ReviewerInfo>
-                <Rating value={review.rating} readOnly size="small" />
-              </ReviewHeader>
-              <ReviewText>{review.text}</ReviewText>
-            </ReviewItem>
-          ))}
-        </ReviewsSection>
+              {reviews.map((review, index) => (
+                <ReviewItem key={review._id || index}>
+                  <ReviewHeader>
+                    <ReviewerAvatar 
+                      src={review.reviewer?.profilePicture || '/api/placeholder/32/32'} 
+                      alt={review.reviewer?.name || 'Anonymous'} 
+                    />
+                    <ReviewerInfo>
+                      <ReviewerName>{review.reviewer?.name || review.reviewer?.username || 'Anonymous'}</ReviewerName>
+                      <ReviewDate>{new Date(review.createdAt).toLocaleDateString()}</ReviewDate>
+                    </ReviewerInfo>
+                    <Rating value={review.rating} readOnly size="small" />
+                  </ReviewHeader>
+                  <ReviewText>{review.comment}</ReviewText>
+                </ReviewItem>
+              ))}
+            </ReviewsSection>
       </SectionCard>
 
       {/* Edit Profile Dialog */}
-      <Dialog open={editDialog} onClose={() => setEditDialog(false)} maxWidth="md" fullWidth>
+      {isOwnProfile && (
+        <Dialog open={editDialog} onClose={() => setEditDialog(false)} maxWidth="md" fullWidth>
         <DialogTitle>Edit Profile</DialogTitle>
         <DialogContent>
           <Box py={2}>
@@ -954,10 +1156,12 @@ function ProfilePage() {
             {saving ? 'Saving...' : 'Save Changes'}
           </Button>
         </DialogActions>
-      </Dialog>
+        </Dialog>
+      )}
 
       {/* Templates Dialog */}
-      <Dialog open={templatesDialog} onClose={() => setTemplatesDialog(false)} maxWidth="lg" fullWidth>
+      {isOwnProfile && (
+        <Dialog open={templatesDialog} onClose={() => setTemplatesDialog(false)} maxWidth="lg" fullWidth>
         <DialogTitle>
           My Templates ({stats.templatesUploaded})
         </DialogTitle>
@@ -997,7 +1201,98 @@ function ProfilePage() {
         <DialogActions>
           <Button onClick={() => setTemplatesDialog(false)}>Close</Button>
         </DialogActions>
-      </Dialog>
+        </Dialog>
+      )}
+
+      {/* Review Dialog */}
+      {!isOwnProfile && (
+        <Dialog open={reviewDialog} onClose={() => setReviewDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Write a Review</DialogTitle>
+        <DialogContent>
+          <Box py={2}>
+            <Typography variant="subtitle1" gutterBottom>
+              Rating
+            </Typography>
+            <Rating
+              value={newReview.rating}
+              onChange={(event, newValue) => {
+                setNewReview(prev => ({ ...prev, rating: newValue }));
+              }}
+              size="large"
+            />
+            <TextField
+              fullWidth
+              label="Your Review"
+              multiline
+              rows={4}
+              value={newReview.comment}
+              onChange={(e) => setNewReview(prev => ({ ...prev, comment: e.target.value }))}
+              margin="normal"
+              placeholder="Share your experience working with this creator..."
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReviewDialog(false)}>Cancel</Button>
+          <Button 
+            variant="contained" 
+            onClick={handleSubmitReview}
+            disabled={!newReview.comment.trim()}
+            startIcon={<Send />}
+          >
+            Submit Review
+          </Button>
+        </DialogActions>
+        </Dialog>
+      )}
+
+      {/* Social Links Dialog */}
+      {isOwnProfile && (
+        <Dialog open={socialLinksDialog} onClose={() => setSocialLinksDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Edit Social Links</DialogTitle>
+        <DialogContent>
+          <Box py={2}>
+            <TextField
+              fullWidth
+              label="GitHub Username"
+              value={socialLinksForm.github}
+              onChange={(e) => setSocialLinksForm(prev => ({ ...prev, github: e.target.value }))}
+              margin="normal"
+              placeholder="your-username"
+              helperText="Enter your GitHub username (without https://github.com/)"
+            />
+            <TextField
+              fullWidth
+              label="LinkedIn Username"
+              value={socialLinksForm.linkedin}
+              onChange={(e) => setSocialLinksForm(prev => ({ ...prev, linkedin: e.target.value }))}
+              margin="normal"
+              placeholder="your-username"
+              helperText="Enter your LinkedIn username (without https://linkedin.com/in/)"
+            />
+            <TextField
+              fullWidth
+              label="Portfolio URL"
+              value={socialLinksForm.portfolio}
+              onChange={(e) => setSocialLinksForm(prev => ({ ...prev, portfolio: e.target.value }))}
+              margin="normal"
+              placeholder="https://your-portfolio.com"
+              helperText="Enter your complete portfolio URL"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSocialLinksDialog(false)} disabled={saving}>Cancel</Button>
+          <Button 
+            variant="contained" 
+            onClick={handleUpdateSocialLinks}
+            disabled={saving}
+          >
+            {saving ? 'Saving...' : 'Save Links'}
+          </Button>
+        </DialogActions>
+        </Dialog>
+      )}
     </ProfileContainer>
   );
 }
