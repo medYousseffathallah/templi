@@ -8,35 +8,25 @@ const User = require("../models/User");
 // Record a new interaction (like, dislike, favorite, view)
 router.post("/", async (req, res) => {
   try {
-    const { userId, templateId, interactionType } = req.body;
+    let { userId, templateId, interactionType } = req.body;
     
     console.log('Received interaction request:', { userId, templateId, interactionType });
     console.log('userId type:', typeof userId);
+    console.log('userId value:', JSON.stringify(userId));
+    console.log('userId length:', userId ? userId.length : 'null/undefined');
     
-    // Convert userId to ObjectId if it's a valid string
-    let userObjectId;
-    try {
-      // Check if userId is already a valid ObjectId
-      if (mongoose.Types.ObjectId.isValid(userId)) {
-        userObjectId = new mongoose.Types.ObjectId(userId);
-        console.log('User ID converted to ObjectId:', userId, '->', userObjectId);
-        
-        // Verify the user exists with this ObjectId
-        const userExists = await User.exists({ _id: userObjectId });
-        if (!userExists) {
-          console.log('User not found with ObjectId, trying alternative lookup');
-          throw new Error('User not found with ObjectId');
-        }
-      } else {
-        throw new Error('Invalid ObjectId format');
-      }
-    } catch (err) {
-      console.log('ObjectId conversion failed, trying alternative user lookup:', err.message);
+    // Validate user exists (convert string to ObjectId if valid)
+    console.log('Checking user existence with _id:', userId);
+    let userExists = null;
+    if (mongoose.Types.ObjectId.isValid(userId)) {
+      userExists = await User.exists({ _id: new mongoose.Types.ObjectId(userId) });
+    }
+    console.log('User exists result:', userExists);
+    
+    if (!userExists) {
+      console.log('User not found with ObjectId, trying alternative lookup');
       
-      // Try to find the user by other means
-      console.log('Attempting to find user by alternative means:', userId);
-      
-      // Check if username or email was provided in the request
+      // Try to find the user by username or email
       const { username, email } = req.body;
       let query = { $or: [{ username: userId }, { email: userId }] };
       
@@ -49,45 +39,40 @@ router.post("/", async (req, res) => {
       
       if (user) {
         console.log('Found user by alternative means:', user.username);
-        userObjectId = user._id;
+        userId = new mongoose.Types.ObjectId(user._id);
       } else {
-        console.error('Invalid userId format or user not found:', userId);
-        return res.status(400).json({ message: "Invalid user ID format or user not found" });
+        console.error('User not found:', userId);
+        return res.status(404).json({ message: "User not found" });
       }
     }
     
-    // Convert templateId to ObjectId if it's a valid string
-    let templateObjectId;
-    try {
-      if (mongoose.Types.ObjectId.isValid(templateId)) {
-        templateObjectId = new mongoose.Types.ObjectId(templateId);
-      } else {
-        // Try to find the template by other means (e.g., title)
-        console.log('Attempting to find template by alternative means:', templateId);
-        const template = await Template.findOne({ title: templateId });
-        if (template) {
-          templateObjectId = template._id;
-        } else {
-          throw new Error('Template not found');
-        }
-      }
-    } catch (err) {
-      console.error('Invalid templateId format or template not found:', templateId);
-      return res.status(400).json({ message: "Invalid template ID format or template not found" });
+    // Validate template exists (convert string to ObjectId if valid)
+    console.log('Checking template existence with _id:', templateId);
+    let templateObjectId = templateId;
+    let templateExists = null;
+    if (mongoose.Types.ObjectId.isValid(templateId)) {
+      templateExists = await Template.exists({ _id: new mongoose.Types.ObjectId(templateId) });
     }
-
-    // Validate template exists
-    const templateExists = await Template.exists({ _id: templateObjectId });
-
+    console.log('Template exists result:', templateExists);
+    
     if (!templateExists) {
-      return res.status(404).json({
-        message: "Template not found",
-      });
+      // Try to find the template by title as fallback
+      console.log('Template not found with ObjectId, trying title lookup:', templateId);
+      const template = await Template.findOne({ title: templateId });
+      if (template) {
+        templateObjectId = new mongoose.Types.ObjectId(template._id);
+        console.log('Found template by title:', template.title, 'with ID:', templateObjectId);
+      } else {
+        console.error('Template not found:', templateId);
+        return res.status(400).json({ message: "Template not found" });
+      }
+    } else {
+      templateObjectId = new mongoose.Types.ObjectId(templateId);
     }
 
     // Check if any interaction already exists for this user and template
     const existingInteraction = await Interaction.findOne({
-      user: userObjectId,
+      user: userId,
       template: templateObjectId,
     });
 
@@ -105,7 +90,7 @@ router.post("/", async (req, res) => {
         } else if (existingInteraction.interactionType === "dislike") {
           await Template.findOneAndUpdate({ _id: templateObjectId }, { $inc: { dislikes: -1 } });
         } else if (existingInteraction.interactionType === "favorite") {
-          await User.findOneAndUpdate({ _id: userObjectId }, {
+          await User.findOneAndUpdate({ _id: userId }, {
             $pull: { favorites: templateObjectId },
           });
         }
@@ -124,7 +109,7 @@ router.post("/", async (req, res) => {
       // Create new interaction
       console.log(`Creating new ${interactionType} interaction`);
       interaction = new Interaction({
-        user: userObjectId,
+        user: userId,
         template: templateObjectId,
         interactionType,
       });
@@ -139,7 +124,7 @@ router.post("/", async (req, res) => {
         await Template.findOneAndUpdate({ _id: templateObjectId }, { $inc: { dislikes: 1 } });
       } else if (interactionType === "favorite") {
         // Add to user's favorites if not already there
-        await User.findOneAndUpdate({ _id: userObjectId }, {
+        await User.findOneAndUpdate({ _id: userId }, {
           $addToSet: { favorites: templateObjectId },
         });
       }
@@ -152,7 +137,7 @@ router.post("/", async (req, res) => {
       console.log('View interaction already exists, treating as success');
       // Find and return the existing view interaction
       const existingView = await Interaction.findOne({
-        user: userObjectId,
+        user: userId,
         template: templateObjectId,
         interactionType: 'view'
       });
@@ -167,36 +152,35 @@ router.post("/", async (req, res) => {
 // Get all interactions for a specific user
 router.get("/user/:userId", async (req, res) => {
   try {
-    // Convert userId to ObjectId
-    let userObjectId;
-    try {
-      // Check if userId is already a valid ObjectId
-      if (mongoose.Types.ObjectId.isValid(req.params.userId)) {
-        userObjectId = new mongoose.Types.ObjectId(req.params.userId);
+    // Validate user exists
+    let userId = req.params.userId;
+    
+    console.log('GET interactions - checking user existence with _id:', userId);
+    let userExists = null;
+    if (mongoose.Types.ObjectId.isValid(userId)) {
+      userExists = await User.exists({ _id: new mongoose.Types.ObjectId(userId) });
+    }
+    console.log('GET interactions - user exists result:', userExists);
+    
+    if (!userExists) {
+      // Try to find the user by username or email
+      console.log('GET interactions - user not found with ObjectId, trying alternative lookup:', userId);
+      
+      const query = { $or: [{ username: req.params.userId }, { email: req.params.userId }] };
+      console.log('User lookup query in GET request:', JSON.stringify(query));
+      const user = await User.findOne(query);
+      
+      if (user) {
+        console.log('Found user by alternative means in GET request:', user.username);
+        userId = new mongoose.Types.ObjectId(user._id);
       } else {
-        // Try to find the user by other means
-        console.log('Attempting to find user by alternative means in GET request:', req.params.userId);
-        
-        // For GET requests, we can only search by username or email in the URL parameter
-        const query = { $or: [{ username: req.params.userId }, { email: req.params.userId }] };
-        
-        console.log('User lookup query in GET request:', JSON.stringify(query));
-        const user = await User.findOne(query);
-        
-        if (user) {
-          console.log('Found user by alternative means in GET request:', user.username);
-          userObjectId = user._id;
-        } else {
-          throw new Error('User not found');
-        }
+        console.error('User not found in GET request:', req.params.userId);
+        return res.status(404).json({ message: "User not found" });
       }
-    } catch (err) {
-      console.error('Invalid userId format or user not found in GET request:', req.params.userId, err.message);
-      return res.status(400).json({ message: "Invalid user ID format or user not found" });
     }
     
     // Build query with optional interaction type filter
-    const query = { user: userObjectId };
+    const query = { user: userId };
     if (req.query.interactionType) {
       query.interactionType = req.query.interactionType;
     }
@@ -213,24 +197,28 @@ router.get("/user/:userId", async (req, res) => {
 // Get all interactions for a specific template
 router.get("/template/:templateId", async (req, res) => {
   try {
-    // Convert templateId to ObjectId
-    let templateObjectId;
-    try {
-      if (mongoose.Types.ObjectId.isValid(req.params.templateId)) {
-        templateObjectId = new mongoose.Types.ObjectId(req.params.templateId);
+    // Validate template exists (convert string to ObjectId if valid)
+    console.log('GET interactions - checking template existence with _id:', req.params.templateId);
+    let templateObjectId = req.params.templateId;
+    let templateExists = null;
+    if (mongoose.Types.ObjectId.isValid(req.params.templateId)) {
+      templateExists = await Template.exists({ _id: new mongoose.Types.ObjectId(req.params.templateId) });
+    }
+    console.log('GET interactions - template exists result:', templateExists);
+    
+    if (!templateExists) {
+      // Try to find the template by title as fallback
+      console.log('Template not found with ObjectId in GET request, trying title lookup:', req.params.templateId);
+      const template = await Template.findOne({ title: req.params.templateId });
+      if (template) {
+        templateObjectId = new mongoose.Types.ObjectId(template._id);
+        console.log('Found template by title in GET request:', template.title, 'with ID:', templateObjectId);
       } else {
-        // Try to find the template by other means (e.g., title)
-        console.log('Attempting to find template by alternative means in GET request:', req.params.templateId);
-        const template = await Template.findOne({ title: req.params.templateId });
-        if (template) {
-          templateObjectId = template._id;
-        } else {
-          throw new Error('Template not found');
-        }
+        console.error('Template not found in GET request:', req.params.templateId);
+        return res.status(400).json({ message: "Template not found" });
       }
-    } catch (err) {
-      console.error('Invalid templateId format or template not found in GET request:', req.params.templateId);
-      return res.status(400).json({ message: "Invalid template ID format or template not found" });
+    } else {
+      templateObjectId = new mongoose.Types.ObjectId(req.params.templateId);
     }
     
     const interactions = await Interaction.find({
@@ -247,24 +235,28 @@ router.get("/template/:templateId", async (req, res) => {
 // Get interaction stats for a template
 router.get("/stats/template/:templateId", async (req, res) => {
   try {
-    // Convert templateId to ObjectId
-    let templateObjectId;
-    try {
-      if (mongoose.Types.ObjectId.isValid(req.params.templateId)) {
-        templateObjectId = new mongoose.Types.ObjectId(req.params.templateId);
+    // Validate template exists (convert string to ObjectId if valid)
+    console.log('GET stats - checking template existence with _id:', req.params.templateId);
+    let templateObjectId = req.params.templateId;
+    let templateExists = null;
+    if (mongoose.Types.ObjectId.isValid(req.params.templateId)) {
+      templateExists = await Template.exists({ _id: new mongoose.Types.ObjectId(req.params.templateId) });
+    }
+    console.log('GET stats - template exists result:', templateExists);
+    
+    if (!templateExists) {
+      // Try to find the template by title as fallback
+      console.log('Template not found with ObjectId in stats request, trying title lookup:', req.params.templateId);
+      const template = await Template.findOne({ title: req.params.templateId });
+      if (template) {
+        templateObjectId = new mongoose.Types.ObjectId(template._id);
+        console.log('Found template by title in stats request:', template.title, 'with ID:', templateObjectId);
       } else {
-        // Try to find the template by other means (e.g., title)
-        console.log('Attempting to find template by alternative means in stats request:', req.params.templateId);
-        const template = await Template.findOne({ title: req.params.templateId });
-        if (template) {
-          templateObjectId = template._id;
-        } else {
-          throw new Error('Template not found');
-        }
+        console.error('Template not found in stats request:', req.params.templateId);
+        return res.status(400).json({ message: "Template not found" });
       }
-    } catch (err) {
-      console.error('Invalid templateId format or template not found in stats request:', req.params.templateId);
-      return res.status(400).json({ message: "Invalid template ID format or template not found" });
+    } else {
+      templateObjectId = new mongoose.Types.ObjectId(req.params.templateId);
     }
     
     const stats = await Interaction.aggregate([
@@ -296,18 +288,13 @@ router.get("/stats/template/:templateId", async (req, res) => {
 // Delete an interaction
 router.delete("/:id", async (req, res) => {
   try {
-    // Convert id to ObjectId
-    let interactionObjectId;
-    try {
-      if (mongoose.Types.ObjectId.isValid(req.params.id)) {
-        interactionObjectId = new mongoose.Types.ObjectId(req.params.id);
-      } else {
-        console.error('Invalid interaction ID format in delete request:', req.params.id);
-        return res.status(400).json({ message: "Invalid interaction ID format" });
-      }
-    } catch (err) {
-      console.error('Error processing interaction ID in delete request:', req.params.id, err);
-      return res.status(400).json({ message: "Invalid interaction ID format" });
+    // Validate interaction exists (ObjectId-based lookup)
+    let interactionObjectId = req.params.id;
+    const interactionExists = await Interaction.exists({ _id: req.params.id });
+    
+    if (!interactionExists) {
+      console.error('Interaction not found in delete request:', req.params.id);
+      return res.status(404).json({ message: "Interaction not found" });
     }
     
     const interaction = await Interaction.findOne({ _id: interactionObjectId });

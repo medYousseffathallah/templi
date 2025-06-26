@@ -43,13 +43,12 @@ const sampleUsers = [
 
 // Sample template categories
 const categories = [
-  "Website",
-  "Mobile App",
-  "Dashboard",
-  "Landing Page",
-  "E-commerce",
-  "Portfolio",
-  "Blog",
+  "Web UI",
+  "Mobile App UI",
+  "Dashboard UI",
+  "Landing Page UI",
+  "E-commerce UI",
+  "Other",
 ];
 
 // Sample template tags
@@ -108,10 +107,12 @@ async function seedDatabase() {
 
       sampleTemplates.push({
         title: `${randomCategory} Template ${i}`,
-        description: `A beautiful ${randomCategory.toLowerCase()} template with modern design and responsive layout. Perfect for ${randomCategory.toLowerCase()} projects.`,
-        imageUrl: `https://picsum.photos/id/${i + 10}/800/600`,
+        description: `This modern and responsive template is designed to meet the needs of developers and designers seeking a clean, user-friendly layout. Ideal for ${randomCategory.toLowerCase()} projects, it features modular components, intuitive navigation, and seamless mobile compatibility.`,
+        imageUrls: [`https://picsum.photos/id/${i + 10}/800/600`],
         tags: randomTags,
         category: randomCategory,
+        subCategory: 'General',
+        frameworkTools: ['HTML/CSS', 'React'],
         creator: randomUser._id,
         likes: Math.floor(Math.random() * 100),
         dislikes: Math.floor(Math.random() * 20),

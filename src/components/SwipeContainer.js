@@ -192,6 +192,11 @@ const SwipeContainer = ({ templates: propTemplates, onSwipe, onFavorite }) => {
         const userId = currentUser._id || currentUser.id;
         const templateId = templates[currentIndex]._id;
         
+        console.log('SwipeContainer - currentUser object:', JSON.stringify(currentUser));
+        console.log('SwipeContainer - extracted userId:', userId);
+        console.log('SwipeContainer - userId type:', typeof userId);
+        console.log('SwipeContainer - templateId:', templateId);
+        
         try {
           console.log('Recording view interaction for template:', templateId);
           // The API will handle the case if the interaction already exists

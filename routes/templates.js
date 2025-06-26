@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const Template = require("../models/Template");
 
 // Get all templates
@@ -400,7 +401,9 @@ router.get("/debug/interactions", async (req, res) => {
 async function getTemplate(req, res, next) {
   let template;
   try {
-    template = await Template.findOne({ _id: req.params.id });
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      template = await Template.findOne({ _id: new mongoose.Types.ObjectId(req.params.id) });
+    }
     if (template == null) {
       return res.status(404).json({ message: "Template not found" });
     }

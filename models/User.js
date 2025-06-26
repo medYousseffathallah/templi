@@ -1,12 +1,7 @@
-const mongoose = require('mongoose');
-const { v4: uuidv4 } = require('uuid');
+const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
-    _id: {
-      type: String,
-      default: uuidv4,
-    },
     username: {
       type: String,
       required: true,
@@ -51,13 +46,13 @@ const userSchema = new mongoose.Schema(
     },
     favorites: [
       {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
         ref: "Template",
       },
     ],
     createdTemplates: [
       {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
         ref: "Template",
       },
     ],
@@ -83,7 +78,6 @@ const userSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    _id: false, // Disable automatic ObjectId generation
   }
 );
 

@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const router = express.Router();
 const User = require("../models/User");
 
@@ -127,16 +128,15 @@ router.post("/:id/favorites/:templateId", getUser, async (req, res) => {
     let templateObjectId;
     let template;
     
-    // First try to find by ObjectId if it's valid
+    // First try to find by ObjectId (convert string to ObjectId if valid)
+    templateObjectId = templateId;
     if (mongoose.Types.ObjectId.isValid(templateId)) {
-      templateObjectId = new mongoose.Types.ObjectId(templateId);
-      console.log('Template ID converted to ObjectId:', templateId, '->', templateObjectId);
-      template = await Template.findOne({ _id: templateObjectId });
+      template = await Template.findOne({ _id: new mongoose.Types.ObjectId(templateId) });
     }
     
     // If not found by ObjectId, try to find by title
     if (!template) {
-      console.log('Attempting to find template by title:', templateId);
+      console.log('Template not found with ObjectId, trying title lookup:', templateId);
       template = await Template.findOne({ title: templateId });
       
       if (template) {
@@ -217,16 +217,15 @@ router.delete("/:id/favorites/:templateId", getUser, async (req, res) => {
     let templateObjectId;
     let template;
     
-    // First try to find by ObjectId if it's valid
+    // First try to find by ObjectId (convert string to ObjectId if valid)
+    templateObjectId = templateId;
     if (mongoose.Types.ObjectId.isValid(templateId)) {
-      templateObjectId = new mongoose.Types.ObjectId(templateId);
-      console.log('Template ID converted to ObjectId for removal:', templateId, '->', templateObjectId);
-      template = await Template.findOne({ _id: templateObjectId });
+      template = await Template.findOne({ _id: new mongoose.Types.ObjectId(templateId) });
     }
     
     // If not found by ObjectId, try to find by title
     if (!template) {
-      console.log('Attempting to find template by title for removal:', templateId);
+      console.log('Template not found with ObjectId for removal, trying title lookup:', templateId);
       template = await Template.findOne({ title: templateId });
       
       if (template) {
@@ -276,25 +275,18 @@ router.delete("/:id/favorites/:templateId", getUser, async (req, res) => {
 async function getUser(req, res, next) {
   let user;
   try {
-    const mongoose = require('mongoose');
     const userId = req.params.id;
     
-    // First try to find by ObjectId if it's valid
+    console.log('getUser middleware - looking for user with ID:', userId);
+    
+    // Try to find by ObjectId first (convert string to ObjectId if valid)
     if (mongoose.Types.ObjectId.isValid(userId)) {
-      try {
-        const userObjectId = new mongoose.Types.ObjectId(userId);
-        console.log('User ID converted to ObjectId:', userId, '->', userObjectId);
-        user = await User.findOne({ _id: userObjectId });
-        console.log('User found by ObjectId:', user ? user.username : 'not found');
-      } catch (err) {
-        console.log('Error converting to ObjectId or finding user:', err.message);
-        // Continue to alternative lookup
-      }
+      user = await User.findById(new mongoose.Types.ObjectId(userId));
     }
     
     // If not found by ObjectId, try to find by username or email
     if (!user) {
-      console.log('Attempting to find user by alternative means:', userId);
+      console.log('User not found with ObjectId, trying alternative lookup:', userId);
       user = await User.findOne({ $or: [{ username: userId }, { email: userId }] });
     }
     
