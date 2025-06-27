@@ -92,7 +92,10 @@ const TemplateCard = styled.div`
   }
 `;
 
-const TemplateImage = styled.div`
+const TemplateImage = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'imageUrl',
+})`
+  width: 100%;
   height: 200px;
   background-image: url(${(props) => props.imageUrl});
   background-size: cover;
@@ -108,6 +111,17 @@ const TemplateImage = styled.div`
     bottom: 0;
     background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.1) 100%);
   }
+  
+  @media (max-width: 768px) {
+    height: 180px;
+  }
+`;
+
+const TemplateVideo = styled.video`
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  position: relative;
   
   @media (max-width: 768px) {
     height: 180px;
@@ -303,10 +317,43 @@ const TrendingPage = () => {
     fetchTrendingTemplates();
   }, []);
 
-  const renderTemplateCard = (template, rank) => (
-    <TemplateCard key={template._id}>
-      <TrendingBadge>#{rank}</TrendingBadge>
-      <TemplateImage imageUrl={template.imageUrl} />
+  const renderTemplateCard = (template, rank) => {
+    // Determine what media to show - prioritize video, then first image from imageUrls, then fallback to imageUrl
+    const getPreviewMedia = () => {
+      if (template.videoUrl) {
+        return (
+          <TemplateVideo 
+            src={template.videoUrl} 
+            muted 
+            loop 
+            playsInline
+            onMouseEnter={(e) => {
+              e.target.play().catch(() => {
+                // Silently handle play errors (common when video is being removed/added)
+              });
+            }}
+            onMouseLeave={(e) => {
+              try {
+                e.target.pause();
+              } catch (error) {
+                // Silently handle pause errors
+              }
+            }}
+          />
+        );
+      } else if (template.imageUrls && template.imageUrls.length > 0) {
+        return <TemplateImage imageUrl={template.imageUrls[0]} />;
+      } else if (template.imageUrl) {
+        return <TemplateImage imageUrl={template.imageUrl} />;
+      } else {
+        return <TemplateImage imageUrl="" />; // Empty placeholder
+      }
+    };
+
+    return (
+      <TemplateCard key={template._id}>
+        <TrendingBadge>#{rank}</TrendingBadge>
+        {getPreviewMedia()}
       <TemplateInfo>
         <TemplateTitle>{template.title}</TemplateTitle>
         <TemplateDescription>{template.description}</TemplateDescription>
@@ -339,7 +386,8 @@ const TrendingPage = () => {
         </StatsContainer>
       </TemplateInfo>
     </TemplateCard>
-  );
+    );
+  };
 
   if (loading) {
     return (

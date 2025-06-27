@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import styled from "styled-components";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Person, Forum, ExitToApp, Search, Notifications } from "@mui/icons-material";
 import { IconButton, Button, Avatar, Badge, InputBase } from "@mui/material";
 import AuthModal from "./AuthModal";
+import NotificationPanel from "./NotificationPanel";
 import { useAuth } from "../context/AuthContext";
 
 const HeaderContainer = styled.div`
@@ -62,6 +64,10 @@ const SearchInput = styled(InputBase)`
     color: var(--text-primary);
     margin-left: 8px;
   }
+`;
+
+const SearchForm = styled.form`
+  display: contents;
 `;
 
 const AuthButton = styled(Button)`
@@ -127,7 +133,12 @@ const LogoText = styled.h2`
 
 function Header() {
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
   const { currentUser, logout, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleAuthClick = () => {
     setShowAuthModal(true);
@@ -135,6 +146,22 @@ function Header() {
 
   const handleLogout = () => {
     logout();
+  };
+
+  const handleProfileClick = () => {
+    navigate('/profile');
+  };
+
+  const handleNotificationClick = () => {
+    setShowNotifications(!showNotifications);
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      // Navigate to explore page with search query
+      navigate(`/explore?search=${encodeURIComponent(searchQuery.trim())}`);
+    }
   };
 
   // Listen for openAuthModal event from Sidebar or MobileNavigation
@@ -150,25 +177,45 @@ function Header() {
       
       <SearchBar>
         <Search fontSize="small" style={{ color: 'var(--text-secondary)' }} />
-        <SearchInput placeholder="Search templates..." />
+        <SearchForm onSubmit={handleSearchSubmit}>
+          <SearchInput 
+            placeholder="Search templates..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </SearchForm>
       </SearchBar>
       
       <HeaderSection>
         {isAuthenticated ? (
           <>
-            <StyledIconButton size="medium">
-              <Badge badgeContent={3} color="error">
+            <StyledIconButton size="medium" onClick={handleNotificationClick}>
+              <Badge badgeContent={notificationCount > 0 ? notificationCount : null} color="error">
                 <Notifications />
               </Badge>
             </StyledIconButton>
             
             <ProfileSection>
               <UserName>{currentUser?.username || 'User'}</UserName>
-              <UserAvatar>{currentUser?.username?.[0]?.toUpperCase() || 'U'}</UserAvatar>
+              <UserAvatar 
+                onClick={handleProfileClick} 
+                style={{ cursor: 'pointer' }}
+                title="Go to Profile"
+              >
+                {currentUser?.username?.[0]?.toUpperCase() || 'U'}
+              </UserAvatar>
               <StyledIconButton onClick={handleLogout} title="Logout" size="small">
                 <ExitToApp />
               </StyledIconButton>
             </ProfileSection>
+            
+            {showNotifications && (
+              <NotificationPanel 
+                isOpen={showNotifications}
+                onClose={() => setShowNotifications(false)}
+                onNotificationCountChange={setNotificationCount}
+              />
+            )}
           </>
         ) : (
           <AuthButton variant="contained" onClick={handleAuthClick}>

@@ -232,6 +232,84 @@ router.get("/template/:templateId", async (req, res) => {
   }
 });
 
+// Get notifications for a user (interactions on their templates)
+router.get("/notifications/:userId", async (req, res) => {
+  try {
+    // Validate user exists
+    let userId = req.params.userId;
+    
+    console.log('GET notifications - checking user existence with _id:', userId);
+    let userExists = null;
+    if (mongoose.Types.ObjectId.isValid(userId)) {
+      userExists = await User.exists({ _id: new mongoose.Types.ObjectId(userId) });
+    }
+    console.log('GET notifications - user exists result:', userExists);
+    
+    if (!userExists) {
+      // Try to find the user by username or email
+      console.log('GET notifications - user not found with ObjectId, trying alternative lookup:', userId);
+      
+      const query = { $or: [{ username: req.params.userId }, { email: req.params.userId }] };
+      console.log('User lookup query in GET notifications request:', JSON.stringify(query));
+      const user = await User.findOne(query);
+      
+      if (user) {
+        console.log('Found user by alternative means in GET notifications request:', user.username);
+        userId = new mongoose.Types.ObjectId(user._id);
+      } else {
+        console.error('User not found in GET notifications request:', req.params.userId);
+        return res.status(404).json({ message: "User not found" });
+      }
+    }
+    
+    // Get user's templates
+    const userTemplates = await Template.find({ creator: userId }).select('_id title');
+    const templateIds = userTemplates.map(t => t._id);
+    
+    // Get interactions on user's templates (excluding their own interactions)
+    const interactions = await Interaction.find({
+      template: { $in: templateIds },
+      user: { $ne: userId } // Exclude user's own interactions
+    })
+    .populate('template', 'title imageUrls imageUrl videoUrl')
+    .populate('user', 'username')
+    .sort({ createdAt: -1 })
+    .limit(50); // Limit to recent 50 notifications
+    
+    // Format notifications
+    const notifications = interactions.map(interaction => ({
+      id: interaction._id,
+      type: interaction.interactionType,
+      message: getNotificationMessage(interaction.interactionType, interaction.template.title),
+      templateName: interaction.template.title,
+      templateId: interaction.template._id,
+      timestamp: interaction.createdAt,
+      read: false // You can implement read status later
+    }));
+    
+    res.json(notifications);
+  } catch (err) {
+    console.error('Error fetching notifications:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Helper function to generate notification messages
+function getNotificationMessage(interactionType, templateName) {
+  switch (interactionType) {
+    case 'like':
+      return `Someone liked your template "${templateName}"`;
+    case 'favorite':
+      return `Someone favorited your template "${templateName}"`;
+    case 'view':
+      return `Your template "${templateName}" was viewed`;
+    case 'download':
+      return `Your template "${templateName}" was downloaded`;
+    default:
+      return `Someone interacted with your template "${templateName}"`;
+  }
+}
+
 // Get interaction stats for a template
 router.get("/stats/template/:templateId", async (req, res) => {
   try {

@@ -21,6 +21,7 @@ router.get("/discover", async (req, res) => {
     const { 
       page = 1, 
       limit = 10, 
+      search,
       category, 
       subCategory,
       tags,
@@ -36,8 +37,22 @@ router.get("/discover", async (req, res) => {
     // Build filter object
     const filter = {};
     
-    // Basic filters
-    if (category) filter.category = category;
+    // Search functionality
+    if (search) {
+      const searchRegex = new RegExp(search, 'i'); // Case-insensitive search
+      filter.$or = [
+        { title: searchRegex },
+        { description: searchRegex },
+        { tags: { $in: [searchRegex] } },
+        { subCategory: searchRegex }
+      ];
+    }
+    
+    // Category filters (support multiple values)
+    if (category) {
+      const categoryArray = category.split(",");
+      filter.category = categoryArray.length === 1 ? categoryArray[0] : { $in: categoryArray };
+    }
     if (subCategory) filter.subCategory = subCategory;
     
     // Array filters
@@ -51,14 +66,26 @@ router.get("/discover", async (req, res) => {
       filter.frameworkTools = { $in: toolsArray };
     }
     
-    // Pricing filter
-    if (pricingTier) filter.pricingTier = pricingTier;
+    // Pricing filter (support multiple values)
+    if (pricingTier) {
+      const pricingArray = pricingTier.split(",");
+      filter.pricingTier = pricingArray.length === 1 ? pricingArray[0] : { $in: pricingArray };
+    }
     
-    // Design specification filters
-    if (colorScheme) filter['designSpecs.colorScheme'] = colorScheme;
+    // Design specification filters (support multiple values)
+    if (colorScheme) {
+      const colorArray = colorScheme.split(",");
+      filter['designSpecs.colorScheme'] = colorArray.length === 1 ? colorArray[0] : { $in: colorArray };
+    }
     if (responsive !== undefined) filter['designSpecs.responsive'] = responsive === 'true';
-    if (accessibilityLevel) filter['designSpecs.accessibilityLevel'] = accessibilityLevel;
-    if (languageSupport) filter['designSpecs.languageSupport'] = languageSupport;
+    if (accessibilityLevel) {
+      const accessibilityArray = accessibilityLevel.split(",");
+      filter['designSpecs.accessibilityLevel'] = accessibilityArray.length === 1 ? accessibilityArray[0] : { $in: accessibilityArray };
+    }
+    if (languageSupport) {
+      const languageArray = languageSupport.split(",");
+      filter['designSpecs.languageSupport'] = languageArray.length === 1 ? languageArray[0] : { $in: languageArray };
+    }
     
     // Determine sort order
     let sortOption = { createdAt: -1 }; // Default sort by newest

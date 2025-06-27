@@ -22,7 +22,9 @@ const TemplateCard = styled.div`
   }
 `;
 
-const TemplateImage = styled.div`
+const TemplateImage = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'imageUrl',
+})`
   height: 200px;
   background-image: url(${(props) => props.imageUrl});
   background-size: cover;
@@ -145,8 +147,18 @@ const LibraryTemplateCard = ({
           muted 
           loop 
           playsInline
-          onMouseEnter={(e) => e.target.play()}
-          onMouseLeave={(e) => e.target.pause()}
+          onMouseEnter={(e) => {
+            e.target.play().catch(() => {
+              // Silently handle play errors (common when video is being removed/added)
+            });
+          }}
+          onMouseLeave={(e) => {
+            try {
+              e.target.pause();
+            } catch (error) {
+              // Silently handle pause errors
+            }
+          }}
         />
       );
     } else if (template.imageUrls && template.imageUrls.length > 0) {

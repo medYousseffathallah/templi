@@ -30,10 +30,53 @@ export const templateApi = {
 
   // Get templates with pagination and filtering
   discover: (page = 1, limit = 10, filters = {}) => {
-    const { category, tags } = filters;
+    const {
+      searchQuery,
+      categories,
+      frameworkTools,
+      pricingTiers,
+      colorSchemes,
+      responsive,
+      accessibilityLevels,
+      languageSupport,
+      sortBy
+    } = filters;
+    
     let url = `/templates/discover?page=${page}&limit=${limit}`;
-    if (category) url += `&category=${category}`;
-    if (tags) url += `&tags=${tags}`;
+    
+    // Add search query
+    if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+    
+    // Add array filters
+    if (categories && categories.length > 0) {
+      url += `&category=${categories.join(',')}`;
+    }
+    if (frameworkTools && frameworkTools.length > 0) {
+      url += `&frameworkTools=${frameworkTools.join(',')}`;
+    }
+    if (pricingTiers && pricingTiers.length > 0) {
+      url += `&pricingTier=${pricingTiers.join(',')}`;
+    }
+    if (colorSchemes && colorSchemes.length > 0) {
+      url += `&colorScheme=${colorSchemes.join(',')}`;
+    }
+    if (accessibilityLevels && accessibilityLevels.length > 0) {
+      url += `&accessibilityLevel=${accessibilityLevels.join(',')}`;
+    }
+    if (languageSupport && languageSupport.length > 0) {
+      url += `&languageSupport=${languageSupport.join(',')}`;
+    }
+    
+    // Add boolean filters
+    if (responsive !== null && responsive !== undefined) {
+      url += `&responsive=${responsive}`;
+    }
+    
+    // Add sort parameter
+    if (sortBy) {
+      url += `&sort=${sortBy}`;
+    }
+    
     return api.get(url);
   },
 
@@ -325,6 +368,21 @@ export const interactionApi = {
     
     const params = interactionType ? { interactionType } : {};
     return api.get(`/interactions/user/${userIdStr}`, { params });
+  },
+
+  // Get notifications for a user (interactions on their templates)
+  getNotifications: (userId) => {
+    // Ensure userId is a string and properly formatted
+    let userIdStr;
+    if (userId && typeof userId === 'object' && userId._id) {
+      userIdStr = userId._id.toString();
+    } else {
+      userIdStr = userId.toString();
+    }
+    
+    console.log('Getting notifications - userId:', userIdStr);
+    
+    return api.get(`/interactions/notifications/${userIdStr}`);
   },
 
   // Record download interaction
