@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from 'axios';
 
 // Create an axios instance with default config
 const api = axios.create({
@@ -420,8 +420,24 @@ export const interactionApi = {
   },
 };
 
+// Review API calls
+export const reviewApi = {
+  // Get reviews for a user
+  getByUser: (userId) => api.get(`/reviews/user/${userId}`),
+  
+  // Create a new review
+  create: (reviewData) => api.post('/reviews', reviewData),
+  
+  // Update a review
+  update: (reviewId, reviewData) => api.put(`/reviews/${reviewId}`, reviewData),
+  
+  // Delete a review
+  delete: (reviewId) => api.delete(`/reviews/${reviewId}`)
+};
+
 export default {
   template: templateApi,
   user: userApi,
   interaction: interactionApi,
+  review: reviewApi,
 };

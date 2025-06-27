@@ -44,10 +44,12 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       const response = await userApi.register(userData);
 
-      // After registration, log the user in
-      await login(userData.email, userData.password);
+      // Store token and user info from registration response
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem("user", JSON.stringify(response.data.user));
 
-      return response.data;
+      setCurrentUser(response.data.user);
+      return response.data.user;
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed");
       throw err;

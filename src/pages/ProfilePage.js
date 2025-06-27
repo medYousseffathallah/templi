@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import styled from "styled-components";
 import { useAuth } from "../context/AuthContext";
-import { userApi, templateApi } from "../services/api";
+import { userApi, templateApi, reviewApi } from "../services/api";
 import {
   Person,
   Verified,
@@ -536,20 +536,8 @@ function ProfilePage() {
   // Fetch reviews for the user
   const fetchReviews = async (targetUserId) => {
     try {
-      const response = await fetch(`/api/reviews/user/${targetUserId}`);
-      if (response.ok) {
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const reviewsData = await response.json();
-          setReviews(reviewsData);
-        } else {
-          console.warn('Reviews API returned non-JSON response, likely endpoint not available');
-          setReviews([]); // Set empty array as fallback
-        }
-      } else {
-        console.warn(`Reviews API returned status ${response.status}`);
-        setReviews([]);
-      }
+      const response = await reviewApi.getByUser(targetUserId);
+      setReviews(response.data);
     } catch (error) {
       console.error('Error fetching reviews:', error);
       setReviews([]); // Set empty array as fallback
@@ -718,6 +706,12 @@ function ProfilePage() {
   const handleSubmitReview = async () => {
     if (!newReview.comment.trim()) return;
     
+    // Check if user is authenticated
+    if (!currentUser) {
+      alert('You must be logged in to submit a review');
+      return;
+    }
+    
     try {
       const targetUserId = userId || profile?._id;
       if (!targetUserId) {
@@ -725,35 +719,21 @@ function ProfilePage() {
         return;
       }
       
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.error('No authentication token found');
+      // Check if user is trying to review themselves
+      if (currentUser._id === targetUserId || currentUser.id === targetUserId) {
+        alert('You cannot review yourself');
         return;
       }
       
-      const response = await fetch('/api/reviews', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          reviewedUser: targetUserId,
-          rating: newReview.rating,
-          comment: newReview.comment
-        })
+      const response = await reviewApi.create({
+        reviewedUser: targetUserId,
+        rating: newReview.rating,
+        comment: newReview.comment
       });
       
-      if (response.ok) {
-        const newReviewData = await response.json();
-        setReviews(prev => [newReviewData, ...prev]);
-        setNewReview({ rating: 5, comment: '' });
-        setReviewDialog(false);
-      } else {
-        const errorData = await response.json();
-        console.error('Error submitting review:', errorData.message);
-        alert(errorData.message || 'Failed to submit review');
-      }
+      setReviews(prev => [response.data, ...prev]);
+       setNewReview({ rating: 5, comment: '' });
+       setReviewDialog(false);
     } catch (error) {
       console.error('Error submitting review:', error);
       alert('Failed to submit review');

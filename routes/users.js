@@ -1,4 +1,5 @@
-const express = require("express");
+const express = require('express');
+const jwt = require('jsonwebtoken');
 const mongoose = require("mongoose");
 const router = express.Router();
 const User = require("../models/User");
@@ -34,10 +35,21 @@ router.post("/register", async (req, res) => {
 
   try {
     const newUser = await user.save();
+    
+    // Generate JWT token for the new user
+    const token = jwt.sign(
+      { id: newUser._id, email: newUser.email },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
+    
     // Don't send password in response
     const userObject = newUser.toObject();
     delete userObject.password;
-    res.status(201).json(userObject);
+    res.status(201).json({
+      user: userObject,
+      token: token
+    });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -57,12 +69,18 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    // In a real app, you would generate and return a JWT token here
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user._id, email: user.email },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
+    
     const userObject = user.toObject();
     delete userObject.password;
     res.json({
       user: userObject,
-      token: "sample-jwt-token", // This would be a real JWT in production
+      token: token
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
