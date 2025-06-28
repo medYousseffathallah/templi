@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
+import { Modal, IconButton, Typography } from '@mui/material';
+import { Close, Star, Favorite, GitHub } from '@mui/icons-material';
 import { templateApi } from "../services/api";
+import { useAuth } from '../context/AuthContext';
 
 const TrendingContainer = styled.div`
   padding: 24px;
@@ -85,6 +88,7 @@ const TemplateCard = styled.div`
   background-color: var(--background-paper);
   position: relative;
   border: 1px solid rgba(0, 0, 0, 0.04);
+  cursor: pointer;
 
   &:hover {
     transform: translateY(-8px);
@@ -287,11 +291,156 @@ const EmptyMessage = styled.div`
   }
 `;
 
+// Modal Styled Components
+const ModalContainer = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  outline: none;
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #eee;
+  background: #f8f9fa;
+`;
+
+const ModalContent = styled.div`
+  padding: 1.5rem;
+  max-height: calc(90vh - 80px);
+  overflow-y: auto;
+`;
+
+const ModalImageContainer = styled.div`
+  position: relative;
+  width: 100%;
+  height: 300px;
+  margin-bottom: 1.5rem;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f5f5f5;
+`;
+
+const ModalImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+`;
+
+const ModalVideo = styled.video`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+`;
+
+const ModalTitle = styled.h2`
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.5rem;
+`;
+
+const ModalDescription = styled.p`
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+`;
+
+const ModalTagsContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+`;
+
+const ModalTag = styled.span`
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+`;
+
+const ModalActions = styled.div`
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+`;
+
+const ActionButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &.primary {
+    background: #1976d2;
+    color: white;
+    
+    &:hover {
+      background: #1565c0;
+    }
+  }
+  
+  &.secondary {
+    background: #f5f5f5;
+    color: #333;
+    
+    &:hover {
+      background: #e0e0e0;
+    }
+  }
+`;
+
+const MediaNavigation = styled.div`
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+`;
+
+const MediaIndicator = styled.div`
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: ${props => props.$active ? '#1976d2' : 'rgba(255, 255, 255, 0.5)'};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: ${props => props.$active ? '#1976d2' : 'rgba(255, 255, 255, 0.8)'};
+  }
+`;
+
 const TrendingPage = () => {
+  const { currentUser } = useAuth();
   const [mostLiked, setMostLiked] = useState([]);
   const [mostFavorited, setMostFavorited] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
 
   useEffect(() => {
     const fetchTrendingTemplates = async () => {
@@ -316,6 +465,41 @@ const TrendingPage = () => {
 
     fetchTrendingTemplates();
   }, []);
+
+  const handleTemplateClick = (template) => {
+    setSelectedTemplate(template);
+    setCurrentMediaIndex(0);
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setSelectedTemplate(null);
+    setCurrentMediaIndex(0);
+  };
+
+  const getTemplateMedia = (template) => {
+    const media = [];
+    if (template.videoUrl) {
+      media.push({ type: 'video', url: template.videoUrl });
+    }
+    if (template.imageUrls && template.imageUrls.length > 0) {
+      template.imageUrls.forEach(url => media.push({ type: 'image', url }));
+    } else if (template.imageUrl) {
+      media.push({ type: 'image', url: template.imageUrl });
+    }
+    return media;
+  };
+
+  const handleMediaNavigation = (index) => {
+    setCurrentMediaIndex(index);
+  };
+
+  const handleDownload = () => {
+    if (selectedTemplate?.githubLink) {
+      window.open(selectedTemplate.githubLink, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   const renderTemplateCard = (template, rank) => {
     // Determine what media to show - prioritize video, then first image from imageUrls, then fallback to imageUrl
@@ -351,7 +535,7 @@ const TrendingPage = () => {
     };
 
     return (
-      <TemplateCard key={template._id}>
+      <TemplateCard key={template._id} onClick={() => handleTemplateClick(template)}>
         <TrendingBadge>#{rank}</TrendingBadge>
         {getPreviewMedia()}
       <TemplateInfo>
@@ -386,6 +570,83 @@ const TrendingPage = () => {
         </StatsContainer>
       </TemplateInfo>
     </TemplateCard>
+    );
+  };
+
+  const renderModal = () => {
+    if (!selectedTemplate) return null;
+
+    const mediaFiles = getTemplateMedia(selectedTemplate);
+    const currentMedia = mediaFiles[currentMediaIndex];
+
+    return (
+      <Modal open={modalOpen} onClose={handleCloseModal}>
+        <ModalContainer>
+          <ModalHeader>
+            <Typography variant="h6" component="h2">
+              Template Details
+            </Typography>
+            <IconButton onClick={handleCloseModal}>
+              <Close />
+            </IconButton>
+          </ModalHeader>
+          
+          <ModalContent>
+            {currentMedia && (
+              <ModalImageContainer>
+                {currentMedia.type === 'video' ? (
+                  <ModalVideo 
+                    src={currentMedia.url} 
+                    controls 
+                    muted 
+                    loop 
+                    playsInline
+                  />
+                ) : (
+                  <ModalImage src={currentMedia.url} alt={selectedTemplate.title} />
+                )}
+                
+                {mediaFiles.length > 1 && (
+                  <MediaNavigation>
+                    {mediaFiles.map((_, index) => (
+                      <MediaIndicator
+                        key={index}
+                        $active={index === currentMediaIndex}
+                        onClick={() => handleMediaNavigation(index)}
+                      />
+                    ))}
+                  </MediaNavigation>
+                )}
+              </ModalImageContainer>
+            )}
+            
+            <ModalTitle>{selectedTemplate.title}</ModalTitle>
+            <ModalDescription>{selectedTemplate.description}</ModalDescription>
+            
+            <ModalTagsContainer>
+              {selectedTemplate.tags.map((tag, index) => (
+                <ModalTag key={index}>{tag}</ModalTag>
+              ))}
+            </ModalTagsContainer>
+            
+            <ModalActions>
+              <ActionButton className="secondary">
+                <Star /> Add to Favorites
+              </ActionButton>
+              
+              {selectedTemplate.githubLink && (
+                <ActionButton className="primary" onClick={handleDownload}>
+                  <GitHub /> View on GitHub
+                </ActionButton>
+              )}
+              
+              <ActionButton className="secondary">
+                <Favorite /> Like
+              </ActionButton>
+            </ModalActions>
+          </ModalContent>
+        </ModalContainer>
+      </Modal>
     );
   };
 
@@ -428,6 +689,8 @@ const TrendingPage = () => {
       ) : (
         <EmptyMessage>No favorited templates this week yet.</EmptyMessage>
       )}
+      
+      {renderModal()}
     </TrendingContainer>
   );
 };

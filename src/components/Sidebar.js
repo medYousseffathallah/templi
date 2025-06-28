@@ -134,8 +134,8 @@ function Sidebar() {
       <SidebarSection>
         <SectionTitle>Discover</SectionTitle>
         
-        <Link to="/" style={{ textDecoration: "none" }}>
-          <SidebarOption active={isActive("/").toString()}>
+        <Link to="/for-you" style={{ textDecoration: "none" }}>
+          <SidebarOption active={isActive("/for-you").toString()}>
             <Home />
             <SidebarText>For You</SidebarText>
           </SidebarOption>

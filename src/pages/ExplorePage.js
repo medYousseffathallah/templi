@@ -4,7 +4,9 @@ import { templateApi } from "../services/api";
 import { Link, useSearchParams } from "react-router-dom";
 import FilterPanel from "../components/FilterPanel";
 import QuickFilters from "../components/QuickFilters";
-import { Pagination, Typography, Box } from "@mui/material";
+import { Pagination, Typography, Box, Modal, IconButton } from "@mui/material";
+import { Close, Star, Favorite, Download, GitHub } from "@mui/icons-material";
+import { useAuth } from "../context/AuthContext";
 
 const ExploreContainer = styled.div`
   display: flex;
@@ -109,6 +111,154 @@ const TemplateCard = styled.div`
   &:hover {
     transform: translateY(-8px);
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  }
+`;
+
+const ModalContainer = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  background: var(--background-paper);
+  border-radius: 20px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  outline: none;
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+`;
+
+const ModalContent = styled.div`
+  padding: 24px;
+  max-height: calc(90vh - 140px);
+  overflow-y: auto;
+`;
+
+const ModalImageContainer = styled.div`
+  width: 100%;
+  height: 300px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+`;
+
+const ModalImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+`;
+
+const ModalVideo = styled.video`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+`;
+
+const ModalTitle = styled.h2`
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+`;
+
+const ModalDescription = styled.p`
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+`;
+
+const ModalTagsContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+`;
+
+const ModalTag = styled.span`
+  background-color: var(--background-default);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+`;
+
+const ModalActions = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  padding: 20px 0;
+`;
+
+const ActionButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &.primary {
+    background: linear-gradient(135deg, var(--primary-main), var(--secondary-main));
+    color: white;
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(255, 88, 100, 0.3);
+    }
+  }
+  
+  &.secondary {
+    background: var(--background-default);
+    color: var(--text-primary);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    
+    &:hover {
+      background: var(--background-paper);
+      transform: translateY(-2px);
+    }
+  }
+`;
+
+const MediaNavigation = styled.div`
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 8px 16px;
+  border-radius: 20px;
+`;
+
+const MediaIndicator = styled.div`
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: ${props => props.$active ? 'white' : 'rgba(255, 255, 255, 0.5)'};
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: white;
+    transform: scale(1.2);
   }
 `;
 
@@ -232,6 +382,7 @@ const ErrorMessage = styled.div`
 `;
 
 const ExplorePage = () => {
+  const { currentUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -242,6 +393,9 @@ const ExplorePage = () => {
   const [filters, setFilters] = useState({});
   const [debouncedFilters, setDebouncedFilters] = useState({});
   const [initialFiltersSet, setInitialFiltersSet] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
 
   // Initialize filters from URL parameters
   useEffect(() => {
@@ -313,6 +467,41 @@ const ExplorePage = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleTemplateClick = (template) => {
+    setSelectedTemplate(template);
+    setCurrentMediaIndex(0);
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setSelectedTemplate(null);
+    setCurrentMediaIndex(0);
+  };
+
+  const getTemplateMedia = (template) => {
+    const media = [];
+    if (template.videoUrl) {
+      media.push({ type: 'video', url: template.videoUrl });
+    }
+    if (template.imageUrls && template.imageUrls.length > 0) {
+      template.imageUrls.forEach(url => media.push({ type: 'image', url }));
+    } else if (template.imageUrl) {
+      media.push({ type: 'image', url: template.imageUrl });
+    }
+    return media;
+  };
+
+  const handleMediaNavigation = (index) => {
+    setCurrentMediaIndex(index);
+  };
+
+  const handleDownload = () => {
+    if (selectedTemplate?.githubLink) {
+      window.open(selectedTemplate.githubLink, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   const renderTemplateCard = (template) => {
     // Determine what media to show - prioritize video, then first image from imageUrls, then fallback to imageUrl
     const getPreviewMedia = () => {
@@ -347,7 +536,7 @@ const ExplorePage = () => {
     };
     
     return (
-      <TemplateCard key={template._id}>
+      <TemplateCard key={template._id} onClick={() => handleTemplateClick(template)}>
         {getPreviewMedia()}
         <TemplateInfo>
           <TemplateTitle>{template.title}</TemplateTitle>
@@ -359,6 +548,83 @@ const ExplorePage = () => {
           </TagsContainer>
         </TemplateInfo>
       </TemplateCard>
+    );
+  };
+
+  const renderModal = () => {
+    if (!selectedTemplate) return null;
+
+    const mediaFiles = getTemplateMedia(selectedTemplate);
+    const currentMedia = mediaFiles[currentMediaIndex];
+
+    return (
+      <Modal open={modalOpen} onClose={handleCloseModal}>
+        <ModalContainer>
+          <ModalHeader>
+            <Typography variant="h6" component="h2">
+              Template Details
+            </Typography>
+            <IconButton onClick={handleCloseModal}>
+              <Close />
+            </IconButton>
+          </ModalHeader>
+          
+          <ModalContent>
+            {currentMedia && (
+              <ModalImageContainer>
+                {currentMedia.type === 'video' ? (
+                  <ModalVideo 
+                    src={currentMedia.url} 
+                    controls 
+                    muted 
+                    loop 
+                    playsInline
+                  />
+                ) : (
+                  <ModalImage src={currentMedia.url} alt={selectedTemplate.title} />
+                )}
+                
+                {mediaFiles.length > 1 && (
+                  <MediaNavigation>
+                    {mediaFiles.map((_, index) => (
+                      <MediaIndicator
+                        key={index}
+                        $active={index === currentMediaIndex}
+                        onClick={() => handleMediaNavigation(index)}
+                      />
+                    ))}
+                  </MediaNavigation>
+                )}
+              </ModalImageContainer>
+            )}
+            
+            <ModalTitle>{selectedTemplate.title}</ModalTitle>
+            <ModalDescription>{selectedTemplate.description}</ModalDescription>
+            
+            <ModalTagsContainer>
+              {selectedTemplate.tags.map((tag, index) => (
+                <ModalTag key={index}>{tag}</ModalTag>
+              ))}
+            </ModalTagsContainer>
+            
+            <ModalActions>
+              <ActionButton className="secondary">
+                <Star /> Add to Favorites
+              </ActionButton>
+              
+              {selectedTemplate.githubLink && (
+                <ActionButton className="primary" onClick={handleDownload}>
+                  <GitHub /> View on GitHub
+                </ActionButton>
+              )}
+              
+              <ActionButton className="secondary">
+                <Favorite /> Like
+              </ActionButton>
+            </ModalActions>
+          </ModalContent>
+        </ModalContainer>
+      </Modal>
     );
   };
 
@@ -424,6 +690,8 @@ const ExplorePage = () => {
           </>
         )}
       </ContentArea>
+      
+      {renderModal()}
     </ExploreContainer>
   );
 };

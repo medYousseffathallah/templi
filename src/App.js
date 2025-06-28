@@ -49,7 +49,8 @@ function App() {
           <Header />
           <MobileNavigation />
           <Routes>
-            <Route path="/" element={<SwipeContainer />} />
+            <Route path="/" element={<ExplorePage />} />
+            <Route path="/for-you" element={<SwipeContainer />} />
             <Route path="/explore" element={<ExplorePage />} />
             <Route path="/upload" element={<UploadPage />} />
             <Route

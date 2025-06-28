@@ -74,9 +74,9 @@ function MobileNavigation() {
 
   return (
     <NavContainer>
-      <NavItem to="/" active={isActive('/').toString()}>
+      <NavItem to="/for-you" active={isActive('/for-you').toString()}>
         <Home fontSize="small" />
-        <NavText>Home</NavText>
+        <NavText>For You</NavText>
       </NavItem>
       
       <NavItem to="/explore" active={isActive('/explore').toString()}>
