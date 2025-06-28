@@ -58,6 +58,8 @@ import {
   NavigateNext,
   NavigateBefore,
   Save,
+  Check as CheckIcon,
+  Close as CloseIcon,
   Visibility,
   Link as LinkIcon,
   Star,
@@ -1116,6 +1118,13 @@ const UploadPage = () => {
   const [accessibilityLevel, setAccessibilityLevel] = useState("Not Tested");
   const [languageSupport, setLanguageSupport] = useState("English");
   
+  // Style attributes
+  const [visualStyle, setVisualStyle] = useState([]);
+  const [layoutStructure, setLayoutStructure] = useState("");
+  const [complexityLevel, setComplexityLevel] = useState("");
+  const [responsiveness, setResponsiveness] = useState("");
+  const [performance, setPerformance] = useState("");
+  
   // Pricing
   const [pricingTier, setPricingTier] = useState("Free");
   const [price, setPrice] = useState(0);
@@ -1145,58 +1154,178 @@ const UploadPage = () => {
   const categoryOptions = [
     'Web UI',
     'Mobile App UI',
-    'Canva UI',
+    'Dashboard UI',
+    'Marketing Materials',
     'Presentation UI',
     'CV/Resume UI',
-    'Dashboard UI',
-    'E-commerce UI',
-    'Admin Panel UI',
-    'Landing Page UI',
+    'Brand Identity',
     'Authentication UI',
-    'Email Template UI',
-    'Component Library',
-    'Design System',
-    'Other'
+    'Component Libraries',
+    'Design Systems',
+    'Custom Category'
   ];
+
+  // State for custom inputs
+  const [customCategory, setCustomCategory] = useState('');
+  const [customSubCategory, setCustomSubCategory] = useState('');
+  const [customFramework, setCustomFramework] = useState('');
+  const [showCustomCategory, setShowCustomCategory] = useState(false);
+  const [showCustomSubCategory, setShowCustomSubCategory] = useState(false);
+  const [showCustomFramework, setShowCustomFramework] = useState(false);
+  const [titleSuggestions, setTitleSuggestions] = useState([]);
+  const [showTitleSuggestions, setShowTitleSuggestions] = useState(false);
   
   // Framework/Tools options
   const frameworkToolsOptions = [
+    // Design Tools
     'Figma',
     'Sketch',
     'Adobe XD',
-    'HTML/CSS',
+    'Photoshop',
+    'Illustrator',
+    'InVision',
+    'Framer',
+    'Canva',
+    'Affinity Designer',
+    // Frontend Frameworks
     'React',
     'Vue',
     'Angular',
-    'Tailwind',
+    'Svelte',
+    'Next.js',
+    'Nuxt.js',
+    'Remix',
+    'HTML/CSS/JS (Vanilla)',
+    // CSS Frameworks
+    'Tailwind CSS',
     'Bootstrap',
+    'Material UI',
+    'Chakra UI',
+    'Bulma',
+    'Foundation',
+    'Semantic UI',
+    'Ant Design',
+    // No-Code/Low-Code
     'Webflow',
-    'Framer',
-    'Canva',
+    'Wix',
+    'Squarespace',
+    'WordPress',
+    'Shopify',
+    'Bubble',
+    'Elementor',
+    'Notion',
+    // Presentation Tools
     'PowerPoint',
     'Keynote',
-    'Other'
+    'Google Slides',
+    'Prezi',
+    // Mobile Frameworks
+    'React Native',
+    'Flutter',
+    'Swift UI',
+    'Kotlin',
+    'Xamarin',
+    'Custom Framework'
   ];
   
   // Sub-category options based on main category
   const getSubCategoryOptions = () => {
+    let options = [];
     switch (category) {
       case 'Web UI':
-        return ['Portfolio', 'Blog', 'SaaS', 'Marketplace', 'Social Media', 'News/Magazine'];
+        options = ['Landing Pages', 'Corporate Websites', 'Portfolios', 'Blogs/Magazine', 'E-commerce Stores', 'SaaS Platforms', 'Marketplaces', 'Community/Forum'];
+        break;
       case 'Mobile App UI':
-        return ['Social', 'E-commerce', 'Finance', 'Health & Fitness', 'Food & Delivery', 'Travel'];
-      case 'CV/Resume UI':
-        return ['Creative', 'Professional', 'Minimal', 'Academic', 'Technical'];
+        options = ['Social Apps', 'E-commerce Apps', 'Food/Delivery', 'Finance/Banking', 'Health/Fitness', 'Travel/Transportation', 'Entertainment/Media', 'Productivity/Tools', 'Education/Learning'];
+        break;
       case 'Dashboard UI':
-        return ['Analytics', 'Admin', 'CRM', 'Finance', 'Healthcare', 'IoT'];
-      case 'E-commerce UI':
-        return ['Product Page', 'Checkout', 'Cart', 'Category Page', 'Search Results'];
-      case 'Landing Page UI':
-        return ['Product', 'Service', 'App', 'Event', 'Personal'];
+        options = ['Analytics Dashboards', 'Admin Panels', 'CRM Interfaces', 'Project Management', 'Financial Dashboards', 'IoT/Smart Home Controls', 'Health Monitoring', 'Data Visualization'];
+        break;
+      case 'Marketing Materials':
+        options = ['Social Media Posts', 'Banners/Ads', 'Email Templates', 'Infographics', 'Brochures/Flyers'];
+        break;
+      case 'Presentation UI':
+        options = ['Business Presentations', 'Pitch Decks', 'Educational Slides', 'Portfolio Presentations', 'Conference Templates'];
+        break;
+      case 'CV/Resume UI':
+        options = ['Professional/Corporate', 'Creative/Design', 'Academic/Research', 'Technical/Engineering', 'Entry-Level/Student'];
+        break;
+      case 'Brand Identity':
+        options = ['Logo Templates', 'Brand Guidelines', 'Business Cards', 'Letterheads', 'Social Media Kits'];
+        break;
+      case 'Authentication UI':
+        options = ['Login/Signup Pages', 'User Profiles', 'Password Recovery', 'Two-Factor Authentication', 'Permission Management'];
+        break;
+      case 'Component Libraries':
+        options = ['Navigation Systems', 'Form Elements', 'Card Designs', 'Modal/Dialog Systems', 'Button Collections', 'Data Tables'];
+        break;
+      case 'Design Systems':
+        options = ['Complete UI Kits', 'Icon Sets', 'Typography Systems', 'Color Palettes'];
+        break;
       default:
-        return [];
+        options = [];
+    }
+    
+    // Add custom option if there are subcategories available
+    if (options.length > 0) {
+      options.push('Custom Sub-Category');
+    }
+    
+    return options;
+  };
+
+  // Function to fetch similar titles
+  const fetchSimilarTitles = async (searchTitle) => {
+    if (!searchTitle || searchTitle.length < 3) {
+      setTitleSuggestions([]);
+      setShowTitleSuggestions(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/templates/discover?search=${encodeURIComponent(searchTitle)}&limit=5`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.warn('Response is not JSON, skipping title suggestions');
+        setTitleSuggestions([]);
+        setShowTitleSuggestions(false);
+        return;
+      }
+      
+      const data = await response.json();
+      
+      if (data.templates && data.templates.length > 0) {
+        const suggestions = data.templates
+          .filter(template => template.title.toLowerCase().includes(searchTitle.toLowerCase()))
+          .map(template => template.title)
+          .slice(0, 3);
+        
+        setTitleSuggestions(suggestions);
+        setShowTitleSuggestions(suggestions.length > 0);
+      } else {
+        setTitleSuggestions([]);
+        setShowTitleSuggestions(false);
+      }
+    } catch (error) {
+      console.error('Error fetching similar titles:', error);
+      setTitleSuggestions([]);
+      setShowTitleSuggestions(false);
     }
   };
+
+  // Debounced title search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchSimilarTitles(title);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [title]);
   
   // Reset sub-category when category changes
   useEffect(() => {
@@ -1230,9 +1359,14 @@ const UploadPage = () => {
     
 
           setColorScheme(draft.colorScheme || "Light");
-          setResponsive(draft.responsive !== undefined ? draft.responsive : true);
-          setAccessibilityLevel(draft.accessibilityLevel || "Not Tested");
-          setLanguageSupport(draft.languageSupport || "English");
+        setResponsive(draft.responsive !== undefined ? draft.responsive : true);
+        setAccessibilityLevel(draft.accessibilityLevel || "Not Tested");
+        setLanguageSupport(draft.languageSupport || "English");
+        setVisualStyle(draft.visualStyle || []);
+        setLayoutStructure(draft.layoutStructure || "");
+        setComplexityLevel(draft.complexityLevel || "");
+        setResponsiveness(draft.responsiveness || "");
+        setPerformance(draft.performance || "");
           setPricingTier(draft.pricingTier || "Free");
           setPrice(draft.price || 0);
           
@@ -1254,8 +1388,8 @@ const UploadPage = () => {
       return () => clearTimeout(autosaveTimer);
     }
   }, [title, description, category, subCategory, frameworkTools, tags, githubLink, isPrivateRepo, 
-      colorScheme, responsive, accessibilityLevel, languageSupport, pricingTier, 
-      price, formIsDirty, isAuthenticated, isSubmitting]);
+      colorScheme, responsive, accessibilityLevel, languageSupport, visualStyle, layoutStructure,
+      complexityLevel, responsiveness, performance, pricingTier, price, formIsDirty, isAuthenticated, isSubmitting]);
   
   // Calculate quality score with detailed requirements
   const calculateQualityScore = useCallback(() => {
@@ -1282,12 +1416,17 @@ const UploadPage = () => {
     if (responsive) score += 5;
     
     // Design specs (10%)
-    if (accessibilityLevel !== "Not Tested") score += 5;
-    if (languageSupport !== "English") score += 5;
+    if (accessibilityLevel !== "Not Tested") score += 2;
+    if (languageSupport !== "English") score += 2;
+    if (visualStyle.length > 0) score += 2;
+    if (layoutStructure) score += 2;
+    if (complexityLevel) score += 1;
+    if (performance) score += 1;
     
     return score;
   }, [title, description, category, frameworkTools, tags, githubLink, 
-      uploadedFiles, responsive, accessibilityLevel, languageSupport]);
+      uploadedFiles, responsive, accessibilityLevel, languageSupport, visualStyle, 
+      layoutStructure, complexityLevel, responsiveness, performance]);
   
   // Get missing requirements for quality score
   const getMissingRequirements = useCallback(() => {
@@ -1347,6 +1486,11 @@ const UploadPage = () => {
       responsive,
       accessibilityLevel,
       languageSupport,
+      visualStyle,
+      layoutStructure,
+      complexityLevel,
+      responsiveness,
+      performance,
       pricingTier,
       price,
       savedAt: new Date().toISOString(),
@@ -1558,6 +1702,11 @@ const UploadPage = () => {
           responsive,
           accessibilityLevel,
           languageSupport,
+          visualStyle,
+          layoutStructure,
+          complexityLevel,
+          responsiveness,
+          performance,
         },
         pricingTier,
         price: pricingTier === "Premium" ? price : 0,
@@ -1747,39 +1896,70 @@ const UploadPage = () => {
                 </Grid>
                 
                 <Grid item xs={12}>
-                  <MobileOptimizedField
-                    label="Template Title"
-                    variant="outlined"
-                    fullWidth
-                    value={title}
-                    onChange={(e) => {
-                      setTitle(e.target.value);
-                      updateFormDirty();
-                      // Clear error when user starts typing
-                      if (errors.title) {
-                        setErrors(prev => ({ ...prev, title: undefined }));
-                      }
-                    }}
-                    error={!!errors.title}
-                    helperText={errors.title}
-                    disabled={isSubmitting}
-                    required
-                    InputProps={{
-                      endAdornment: (
-                        <Tooltip title={
-                          <TooltipContent>
-                            <TooltipTitle>Creating an Effective Title</TooltipTitle>
-                            <TooltipText>
-                              A good title is clear, specific, and includes keywords users might search for. 
-                              Aim for 30-50 characters that accurately describe your template.
-                            </TooltipText>
-                          </TooltipContent>
-                        }>
-                          <HelpOutline color="action" style={{ cursor: 'pointer' }} />
-                        </Tooltip>
-                      ),
-                    }}
-                  />
+                  <Box sx={{ position: 'relative' }}>
+                    <MobileOptimizedField
+                      label="Template Title"
+                      variant="outlined"
+                      fullWidth
+                      value={title}
+                      onChange={(e) => {
+                        setTitle(e.target.value);
+                        updateFormDirty();
+                        // Clear error when user starts typing
+                        if (errors.title) {
+                          setErrors(prev => ({ ...prev, title: undefined }));
+                        }
+                      }}
+                      error={!!errors.title}
+                      helperText={errors.title}
+                      disabled={isSubmitting}
+                      required
+                      InputProps={{
+                        endAdornment: (
+                          <Tooltip title={
+                            <TooltipContent>
+                              <TooltipTitle>Creating an Effective Title</TooltipTitle>
+                              <TooltipText>
+                                A good title is clear, specific, and includes keywords users might search for. 
+                                Aim for 30-50 characters that accurately describe your template.
+                              </TooltipText>
+                            </TooltipContent>
+                          }>
+                            <HelpOutline color="action" style={{ cursor: 'pointer' }} />
+                          </Tooltip>
+                        ),
+                      }}
+                    />
+                    
+                    {/* Title Suggestions */}
+                    {showTitleSuggestions && titleSuggestions.length > 0 && (
+                      <Paper 
+                        elevation={3} 
+                        sx={{ 
+                          position: 'absolute', 
+                          top: '100%', 
+                          left: 0, 
+                          right: 0, 
+                          zIndex: 1000,
+                          mt: 1,
+                          border: '1px solid #ff9800',
+                          borderRadius: 1
+                        }}
+                      >
+                        <Box sx={{ p: 2, bgcolor: '#fff3e0' }}>
+                          <Typography variant="body2" color="warning.main" sx={{ fontWeight: 'bold', mb: 1 }}>
+                            ⚠️ Similar titles found - Consider making yours unique:
+                          </Typography>
+                          {titleSuggestions.map((suggestion, index) => (
+                            <Typography key={index} variant="body2" sx={{ color: '#f57c00', ml: 1 }}>
+                              • {suggestion}
+                            </Typography>
+                          ))}
+                        </Box>
+                      </Paper>
+                    )}
+                  </Box>
+                  
                   <CharacterCounter isOver={title.length > 60}>
                     {title.length}/60 characters
                   </CharacterCounter>
@@ -1800,72 +1980,185 @@ const UploadPage = () => {
                 
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth error={!!errors.category} required>
-                    <InputLabel>Category</InputLabel>
+                    <InputLabel>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        🧱 Category
+                        <Tooltip title="Choose the main category that best describes your template type">
+                          <HelpOutline fontSize="small" color="action" />
+                        </Tooltip>
+                      </Box>
+                    </InputLabel>
                     <Select
-                      value={category}
+                      value={showCustomCategory ? 'Custom Category' : category}
                       onChange={(e) => {
-                        setCategory(e.target.value);
+                        if (e.target.value === 'Custom Category') {
+                          setShowCustomCategory(true);
+                          setCategory('');
+                        } else {
+                          setShowCustomCategory(false);
+                          setCategory(e.target.value);
+                        }
                         updateFormDirty();
                         // Clear error when user selects
                         if (errors.category) {
                           setErrors(prev => ({ ...prev, category: undefined }));
                         }
                       }}
-                      label="Category"
+                      label="🧱 Category"
                       disabled={isSubmitting}
                     >
                       {categoryOptions.map((option) => (
                         <MenuItem key={option} value={option}>
-                          {option}
+                          {option === 'Custom Category' ? '✏️ ' + option : option}
                         </MenuItem>
                       ))}
                     </Select>
                     {errors.category && <FormHelperText>{errors.category}</FormHelperText>}
                   </FormControl>
+                  
+                  {/* Custom Category Input */}
+                  {showCustomCategory && (
+                    <Box sx={{ mt: 2 }}>
+                      <TextField
+                        fullWidth
+                        label="Enter Custom Category"
+                        value={customCategory}
+                        onChange={(e) => {
+                          setCustomCategory(e.target.value);
+                          setCategory(e.target.value);
+                          updateFormDirty();
+                        }}
+                        placeholder="e.g., Game UI, AR/VR Interface, etc."
+                        disabled={isSubmitting}
+                        InputProps={{
+                          endAdornment: (
+                            <IconButton 
+                              onClick={() => {
+                                setShowCustomCategory(false);
+                                setCustomCategory('');
+                                setCategory('');
+                              }}
+                              size="small"
+                            >
+                              <CloseIcon fontSize="small" />
+                            </IconButton>
+                          )
+                        }}
+                      />
+                    </Box>
+                  )}
                 </Grid>
                 
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth error={!!errors.subCategory} disabled={!category || getSubCategoryOptions().length === 0} required={getSubCategoryOptions().length > 0}>
-                    <InputLabel>Sub-Category</InputLabel>
+                    <InputLabel>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        📂 Sub-Category
+                        <Tooltip title="Select a specific subcategory to help users find your template more easily">
+                          <HelpOutline fontSize="small" color="action" />
+                        </Tooltip>
+                      </Box>
+                    </InputLabel>
                     <Select
-                      value={subCategory}
+                      value={showCustomSubCategory ? 'Custom Sub-Category' : subCategory}
                       onChange={(e) => {
-                        setSubCategory(e.target.value);
+                        if (e.target.value === 'Custom Sub-Category') {
+                          setShowCustomSubCategory(true);
+                          setSubCategory('');
+                        } else {
+                          setShowCustomSubCategory(false);
+                          setSubCategory(e.target.value);
+                        }
                         updateFormDirty();
                       }}
-                      label="Sub-Category"
+                      label="📂 Sub-Category"
                       disabled={isSubmitting || !category || getSubCategoryOptions().length === 0}
                     >
                       {getSubCategoryOptions().map((option) => (
                         <MenuItem key={option} value={option}>
-                          {option}
+                          {option === 'Custom Sub-Category' ? '✏️ ' + option : option}
                         </MenuItem>
                       ))}
                     </Select>
                     {errors.subCategory && <FormHelperText>{errors.subCategory}</FormHelperText>}
                   </FormControl>
+                  
+                  {/* Custom Sub-Category Input */}
+                  {showCustomSubCategory && (
+                    <Box sx={{ mt: 2 }}>
+                      <TextField
+                        fullWidth
+                        label="Enter Custom Sub-Category"
+                        value={customSubCategory}
+                        onChange={(e) => {
+                          setCustomSubCategory(e.target.value);
+                          setSubCategory(e.target.value);
+                          updateFormDirty();
+                        }}
+                        placeholder="e.g., Gaming, Educational, Medical, etc."
+                        disabled={isSubmitting}
+                        InputProps={{
+                          endAdornment: (
+                            <IconButton 
+                              onClick={() => {
+                                setShowCustomSubCategory(false);
+                                setCustomSubCategory('');
+                                setSubCategory('');
+                              }}
+                              size="small"
+                            >
+                              <CloseIcon fontSize="small" />
+                            </IconButton>
+                          )
+                        }}
+                      />
+                    </Box>
+                  )}
                 </Grid>
                 
                 <Grid item xs={12}>
                   <FormControl fullWidth error={!!errors.frameworkTools} required>
-                    <InputLabel>Framework/Tools</InputLabel>
+                    <InputLabel>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        ⚙️ Framework/Tools
+                        <Tooltip title="Select the frameworks, tools, or technologies used to create this template">
+                          <HelpOutline fontSize="small" color="action" />
+                        </Tooltip>
+                      </Box>
+                    </InputLabel>
                     <Select
                       multiple
-                      value={frameworkTools}
+                      value={frameworkTools.filter(tool => tool !== 'Custom Framework')}
                       onChange={(e) => {
-                        setFrameworkTools(e.target.value);
+                        const value = e.target.value;
+                        if (value.includes('Custom Framework')) {
+                          setShowCustomFramework(true);
+                          setFrameworkTools(value.filter(tool => tool !== 'Custom Framework'));
+                        } else {
+                          setFrameworkTools(value);
+                        }
                         updateFormDirty();
                         // Clear error when user selects
                         if (errors.frameworkTools) {
                           setErrors(prev => ({ ...prev, frameworkTools: undefined }));
                         }
                       }}
-                      input={<OutlinedInput label="Framework/Tools" />}
+                      input={<OutlinedInput label="⚙️ Framework/Tools" />}
                       renderValue={(selected) => (
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                           {selected.map((value) => (
                             <Chip key={value} label={value} />
                           ))}
+                          {customFramework && (
+                            <Chip 
+                              key={customFramework} 
+                              label={customFramework}
+                              onDelete={() => {
+                                setCustomFramework('');
+                                setFrameworkTools(prev => prev.filter(tool => tool !== customFramework));
+                              }}
+                            />
+                          )}
                         </Box>
                       )}
                       MenuProps={MenuProps}
@@ -1874,12 +2167,69 @@ const UploadPage = () => {
                       {frameworkToolsOptions.map((option) => (
                         <MenuItem key={option} value={option}>
                           <Checkbox checked={frameworkTools.indexOf(option) > -1} />
-                          <ListItemText primary={option} />
+                          <ListItemText primary={option === 'Custom Framework' ? '✏️ ' + option : option} />
                         </MenuItem>
                       ))}
                     </Select>
                     {errors.frameworkTools && <FormHelperText>{errors.frameworkTools}</FormHelperText>}
                   </FormControl>
+                  
+                  {/* Custom Framework Input */}
+                  {showCustomFramework && (
+                    <Box sx={{ mt: 2 }}>
+                      <TextField
+                        fullWidth
+                        label="Enter Custom Framework/Tool"
+                        value={customFramework}
+                        onChange={(e) => {
+                          setCustomFramework(e.target.value);
+                        }}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && customFramework.trim()) {
+                            if (!frameworkTools.includes(customFramework.trim())) {
+                              setFrameworkTools(prev => [...prev, customFramework.trim()]);
+                            }
+                            setCustomFramework('');
+                            setShowCustomFramework(false);
+                          }
+                        }}
+                        placeholder="e.g., Unity, Unreal Engine, Three.js, etc."
+                        disabled={isSubmitting}
+                        InputProps={{
+                          endAdornment: (
+                            <Box sx={{ display: 'flex', gap: 1 }}>
+                              <IconButton 
+                                onClick={() => {
+                                  if (customFramework.trim() && !frameworkTools.includes(customFramework.trim())) {
+                                    setFrameworkTools(prev => [...prev, customFramework.trim()]);
+                                  }
+                                  setCustomFramework('');
+                                  setShowCustomFramework(false);
+                                }}
+                                size="small"
+                                color="primary"
+                                disabled={!customFramework.trim()}
+                              >
+                                <CheckIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton 
+                                onClick={() => {
+                                  setShowCustomFramework(false);
+                                  setCustomFramework('');
+                                }}
+                                size="small"
+                              >
+                                <CloseIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          )
+                        }}
+                      />
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                        Press Enter or click ✓ to add the custom framework
+                      </Typography>
+                    </Box>
+                  )}
                 </Grid>
                 
                 <Grid item xs={12}>
@@ -2266,6 +2616,165 @@ const UploadPage = () => {
                       label="This is a private repository"
                       sx={{ mt: 1 }}
                     />
+                  </Box>
+                </Grid>
+                
+                {/* Style Attributes Section */}
+                <Grid item xs={12}>
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="subtitle1" gutterBottom>
+                      <Palette sx={{ mr: 1, verticalAlign: 'middle' }} />
+                      Style & Design Attributes
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                      Help users find templates that match their design preferences
+                    </Typography>
+                    
+                    <Grid container spacing={2}>
+                      {/* Visual Style */}
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                          <InputLabel>Visual Style</InputLabel>
+                          <Select
+                            multiple
+                            value={visualStyle}
+                            onChange={(e) => {
+                              setVisualStyle(e.target.value);
+                              updateFormDirty();
+                            }}
+                            input={<OutlinedInput label="Visual Style" />}
+                            renderValue={(selected) => (
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                {selected.map((value) => (
+                                  <Chip key={value} label={value} size="small" />
+                                ))}
+                              </Box>
+                            )}
+                          >
+                            {['Minimalist', 'Colorful', 'Dark Mode', 'Light Mode', 'Gradient', 'Flat Design', 'Neumorphic', 'Glassmorphic', '3D Elements', 'Illustrated', 'Photographic', 'Retro/Vintage', 'Futuristic', 'Playful', 'Corporate', 'Luxury'].map((style) => (
+                              <MenuItem key={style} value={style}>
+                                <Checkbox checked={visualStyle.indexOf(style) > -1} />
+                                <ListItemText primary={style} />
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      
+                      {/* Layout Structure */}
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                          <InputLabel>Layout Structure</InputLabel>
+                          <Select
+                            value={layoutStructure}
+                            onChange={(e) => {
+                              setLayoutStructure(e.target.value);
+                              updateFormDirty();
+                            }}
+                            label="Layout Structure"
+                          >
+                            {['Grid-based', 'Asymmetrical', 'Single Page', 'Multi-page', 'Card-based', 'Timeline', 'Magazine', 'Dashboard', 'Portfolio Grid'].map((layout) => (
+                              <MenuItem key={layout} value={layout}>{layout}</MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      
+                      {/* Complexity Level */}
+                      <Grid item xs={12} sm={4}>
+                        <FormControl fullWidth>
+                          <InputLabel>Complexity Level</InputLabel>
+                          <Select
+                            value={complexityLevel}
+                            onChange={(e) => {
+                              setComplexityLevel(e.target.value);
+                              updateFormDirty();
+                            }}
+                            label="Complexity Level"
+                          >
+                            {['Beginner', 'Intermediate', 'Advanced'].map((level) => (
+                              <MenuItem key={level} value={level}>{level}</MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      
+                      {/* Responsiveness */}
+                      <Grid item xs={12} sm={4}>
+                        <FormControl fullWidth>
+                          <InputLabel>Responsiveness</InputLabel>
+                          <Select
+                            value={responsiveness}
+                            onChange={(e) => {
+                              setResponsiveness(e.target.value);
+                              updateFormDirty();
+                            }}
+                            label="Responsiveness"
+                          >
+                            {['Mobile-First', 'Responsive', 'Desktop-Only', 'Mobile-Only', 'Tablet-Optimized'].map((resp) => (
+                              <MenuItem key={resp} value={resp}>{resp}</MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      
+                      {/* Performance */}
+                      <Grid item xs={12} sm={4}>
+                        <FormControl fullWidth>
+                          <InputLabel>Performance</InputLabel>
+                          <Select
+                            value={performance}
+                            onChange={(e) => {
+                              setPerformance(e.target.value);
+                              updateFormDirty();
+                            }}
+                            label="Performance"
+                          >
+                            {['Lightweight', 'Animation-Heavy', 'Optimized for Speed'].map((perf) => (
+                              <MenuItem key={perf} value={perf}>{perf}</MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      
+                      {/* Accessibility Level */}
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                          <InputLabel>Accessibility Level</InputLabel>
+                          <Select
+                            value={accessibilityLevel}
+                            onChange={(e) => {
+                              setAccessibilityLevel(e.target.value);
+                              updateFormDirty();
+                            }}
+                            label="Accessibility Level"
+                          >
+                            {['Not Tested', 'WCAG AA Compliant', 'WCAG AAA Compliant', 'Screen Reader Friendly', 'High Contrast'].map((level) => (
+                              <MenuItem key={level} value={level}>{level}</MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      
+                      {/* Language Support */}
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                          <InputLabel>Language Support</InputLabel>
+                          <Select
+                            value={languageSupport}
+                            onChange={(e) => {
+                              setLanguageSupport(e.target.value);
+                              updateFormDirty();
+                            }}
+                            label="Language Support"
+                          >
+                            {['English', 'Multi-language', 'RTL Support', 'Localization Ready'].map((lang) => (
+                              <MenuItem key={lang} value={lang}>{lang}</MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                    </Grid>
                   </Box>
                 </Grid>
                 
