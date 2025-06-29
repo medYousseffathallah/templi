@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { Modal, IconButton, Typography } from '@mui/material';
 import { Close, Star, Favorite, GitHub, ZoomIn, ZoomOut, RestartAlt } from '@mui/icons-material';
-import { templateApi } from "../services/api";
+import { templateApi, interactionApi } from "../services/api";
 import { useAuth } from '../context/AuthContext';
 
 const TrendingContainer = styled.div`
@@ -502,11 +502,54 @@ const TrendingPage = () => {
         
         // Fetch most liked templates of the week
         const likedResponse = await templateApi.getTrending('like');
-        setMostLiked(likedResponse.data);
+        let mostLikedTemplates = likedResponse.data;
         
         // Fetch most favorited templates of the week
         const favoritedResponse = await templateApi.getTrending('favorite');
-        setMostFavorited(favoritedResponse.data);
+        let mostFavoritedTemplates = favoritedResponse.data;
+        
+        // If user is logged in, fetch their interactions and merge with template data
+        if (currentUser) {
+          try {
+            const userId = currentUser._id || currentUser.id;
+            const [likesResponse, favoritesResponse] = await Promise.all([
+              interactionApi.getUserInteractions(userId, 'like'),
+              interactionApi.getUserInteractions(userId, 'favorite')
+            ]);
+            
+            const likedTemplateIds = new Set(
+               (likesResponse.data || []).map(interaction => 
+                 interaction.template._id || interaction.template.id || interaction.template
+               )
+             );
+             
+             const favoritedTemplateIds = new Set(
+               (favoritesResponse.data || []).map(interaction => 
+                 interaction.template._id || interaction.template.id || interaction.template
+               )
+             );
+            
+            // Merge interaction data with most liked templates
+            mostLikedTemplates = mostLikedTemplates.map(template => ({
+              ...template,
+              isLiked: likedTemplateIds.has(template._id || template.id),
+              isFavorited: favoritedTemplateIds.has(template._id || template.id)
+            }));
+            
+            // Merge interaction data with most favorited templates
+            mostFavoritedTemplates = mostFavoritedTemplates.map(template => ({
+              ...template,
+              isLiked: likedTemplateIds.has(template._id || template.id),
+              isFavorited: favoritedTemplateIds.has(template._id || template.id)
+            }));
+          } catch (interactionErr) {
+            console.error("Error fetching user interactions:", interactionErr);
+            // Continue without interaction data if fetch fails
+          }
+        }
+        
+        setMostLiked(mostLikedTemplates);
+        setMostFavorited(mostFavoritedTemplates);
         
         setLoading(false);
       } catch (err) {
@@ -517,7 +560,7 @@ const TrendingPage = () => {
     };
 
     fetchTrendingTemplates();
-  }, []);
+  }, [currentUser]);
 
   const handleTemplateClick = (template) => {
     setSelectedTemplate(template);
@@ -553,7 +596,7 @@ const TrendingPage = () => {
     if (!currentUser || !selectedTemplate) return;
     
     try {
-      const response = await templateApi.likeTemplate(selectedTemplate.id);
+      const response = await interactionApi.likeTemplate(currentUser.id || currentUser._id, selectedTemplate._id || selectedTemplate.id);
       setIsLiked(!isLiked);
       setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
     } catch (error) {
@@ -565,7 +608,7 @@ const TrendingPage = () => {
     if (!currentUser || !selectedTemplate) return;
     
     try {
-      const response = await templateApi.favoriteTemplate(selectedTemplate.id);
+      const response = await interactionApi.favoriteTemplate(currentUser.id || currentUser._id, selectedTemplate._id || selectedTemplate.id);
       setIsFavorited(!isFavorited);
       setFavoriteCount(prev => isFavorited ? prev - 1 : prev + 1);
     } catch (error) {

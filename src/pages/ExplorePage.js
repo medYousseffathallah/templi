@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
-import { templateApi } from "../services/api";
+import { templateApi, interactionApi } from "../services/api";
 import { Link, useSearchParams } from "react-router-dom";
 import FilterPanel from "../components/FilterPanel";
 import QuickFilters from "../components/QuickFilters";
@@ -483,8 +483,42 @@ const ExplorePage = () => {
       setError(null);
       
       const response = await templateApi.discover(page, 12, appliedFilters);
+      let templates = response.data.templates;
       
-      setTemplates(response.data.templates);
+      // If user is logged in, fetch their interactions and merge with template data
+      if (currentUser) {
+        try {
+          const userId = currentUser._id || currentUser.id;
+          const [likesResponse, favoritesResponse] = await Promise.all([
+            interactionApi.getUserInteractions(userId, 'like'),
+            interactionApi.getUserInteractions(userId, 'favorite')
+          ]);
+          
+          const likedTemplateIds = new Set(
+              (likesResponse.data || []).map(interaction => 
+                interaction.template._id || interaction.template.id || interaction.template
+              )
+            );
+            
+            const favoritedTemplateIds = new Set(
+              (favoritesResponse.data || []).map(interaction => 
+                interaction.template._id || interaction.template.id || interaction.template
+              )
+            );
+          
+          // Merge interaction data with templates
+          templates = templates.map(template => ({
+            ...template,
+            isLiked: likedTemplateIds.has(template._id || template.id),
+            isFavorited: favoritedTemplateIds.has(template._id || template.id)
+          }));
+        } catch (interactionErr) {
+          console.error("Error fetching user interactions:", interactionErr);
+          // Continue without interaction data if fetch fails
+        }
+      }
+      
+      setTemplates(templates);
       setTotalPages(response.data.totalPages);
       setTotalTemplates(response.data.totalTemplates);
       setCurrentPage(response.data.currentPage);
@@ -494,7 +528,7 @@ const ExplorePage = () => {
       setError("Failed to load templates. Please try again later.");
       setLoading(false);
     }
-  }, []);
+  }, [currentUser]);
 
   // Fetch templates when filters or page changes
   useEffect(() => {
@@ -576,19 +610,9 @@ const ExplorePage = () => {
     if (!currentUser || !selectedTemplate) return;
     
     try {
-      const response = await fetch(`http://localhost:5000/api/templates/${selectedTemplate._id}/like`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setIsLiked(data.isLiked);
-        setLikeCount(data.likes);
-      }
+      const response = await interactionApi.likeTemplate(currentUser.id || currentUser._id, selectedTemplate._id || selectedTemplate.id);
+      setIsLiked(!isLiked);
+      setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
     } catch (error) {
       console.error('Error liking template:', error);
     }
@@ -598,19 +622,9 @@ const ExplorePage = () => {
     if (!currentUser || !selectedTemplate) return;
     
     try {
-      const response = await fetch(`http://localhost:5000/api/templates/${selectedTemplate._id}/favorite`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setIsFavorited(data.isFavorited);
-        setFavoriteCount(data.favorites);
-      }
+      const response = await interactionApi.favoriteTemplate(currentUser.id || currentUser._id, selectedTemplate._id || selectedTemplate.id);
+      setIsFavorited(!isFavorited);
+      setFavoriteCount(prev => isFavorited ? prev - 1 : prev + 1);
     } catch (error) {
       console.error('Error favoriting template:', error);
     }
