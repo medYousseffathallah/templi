@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import "./App.css";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
@@ -14,6 +14,7 @@ import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import styled from "styled-components";
 import { AuthProvider } from "./context/AuthContext";
+import { DataProvider } from "./context/DataContext";
 import theme from "./theme";
 
 const AppContainer = styled.div`
@@ -41,45 +42,67 @@ const PageWrapper = styled.div`
 `;
 
 function App() {
+  // Register service worker for caching and offline support
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then((registration) => {
+            console.log('SW registered: ', registration);
+            
+            // Check for updates every 30 minutes
+            setInterval(() => {
+              registration.update();
+            }, 30 * 60 * 1000);
+          })
+          .catch((registrationError) => {
+            console.log('SW registration failed: ', registrationError);
+          });
+      });
+    }
+  }, []);
+
   return (
     <AuthProvider>
-      <Router>
-        <AppContainer>
-          <Sidebar />
-          <Header />
-          <MobileNavigation />
-          <Routes>
-            <Route path="/" element={<ExplorePage />} />
-            <Route path="/for-you" element={<SwipeContainer />} />
-            <Route path="/explore" element={<ExplorePage />} />
-            <Route path="/upload" element={<UploadPage />} />
-            <Route
-              path="/favorites"
-              element={<FavoritesPage />}
-            />
-            <Route
-              path="/saved"
-              element={<LibraryPage />}
-            />
-            <Route
-              path="/trending"
-              element={<TrendingPage />}
-            />
-            <Route
-              path="/profile"
-              element={<ProfilePage />}
-            />
-            <Route
-              path="/profile/:userId"
-              element={<ProfilePage />}
-            />
-            <Route
-              path="/settings"
-              element={<SettingsPage />}
-            />
-          </Routes>
-        </AppContainer>
-      </Router>
+      <DataProvider>
+        <Router>
+          <AppContainer>
+            <Sidebar />
+            <Header />
+            <MobileNavigation />
+            <Routes>
+              <Route path="/" element={<ExplorePage />} />
+              <Route path="/for-you" element={<SwipeContainer />} />
+              <Route path="/explore" element={<ExplorePage />} />
+              <Route path="/upload" element={<UploadPage />} />
+              <Route
+                path="/favorites"
+                element={<FavoritesPage />}
+              />
+              <Route
+                path="/saved"
+                element={<LibraryPage />}
+              />
+              <Route
+                path="/trending"
+                element={<TrendingPage />}
+              />
+              <Route
+                path="/profile"
+                element={<ProfilePage />}
+              />
+              <Route
+                path="/profile/:userId"
+                element={<ProfilePage />}
+              />
+              <Route
+                path="/settings"
+                element={<SettingsPage />}
+              />
+            </Routes>
+          </AppContainer>
+        </Router>
+      </DataProvider>
     </AuthProvider>
   );
 }

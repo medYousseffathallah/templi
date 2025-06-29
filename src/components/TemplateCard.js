@@ -1,9 +1,12 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from "styled-components";
 import { useNavigate } from 'react-router-dom';
 import { Close, Star, Favorite, Info, ChevronLeft, ChevronRight, Fullscreen, FullscreenExit, Verified, Download, Upload, GetApp } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 import { interactionApi } from "../services/api";
+import OptimizedImage from './OptimizedImage';
+import { useDebounceCallback } from '../hooks/useDebounce';
+import { measureTemplateLoad, recordMetric, startTiming } from '../utils/performanceMonitor';
 
 const Card = styled.div`
   position: relative;
@@ -39,13 +42,16 @@ const MediaItem = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background-size: ${props => props.$expanded ? 'contain' : 'cover'};
-  background-position: center;
-  background-repeat: no-repeat;
-  background-color: ${props => props.$expanded ? '#000' : 'transparent'};
   transition: all 0.3s ease;
   opacity: ${props => props.$isActive ? 1 : 0};
   cursor: ${props => props.$expanded ? 'default' : 'pointer'};
+  background-color: ${props => props.$expanded ? '#000' : 'transparent'};
+`;
+
+const OptimizedMediaImage = styled(OptimizedImage)`
+  width: 100%;
+  height: 100%;
+  transition: all 0.3s ease;
 `;
 
 const VideoElement = styled.video`
@@ -506,6 +512,22 @@ const TemplateCard = ({
 }) => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  
+  // Performance monitoring
+  const loadTimerRef = useRef(null);
+  
+  useEffect(() => {
+    if (template && !loadTimerRef.current) {
+      loadTimerRef.current = measureTemplateLoad(template._id, 'Render');
+      recordMetric('Template_Card_Mount', 1, 'increment');
+    }
+    
+    return () => {
+      if (loadTimerRef.current) {
+        loadTimerRef.current.end();
+      }
+    };
+  }, [template]);
   const [touchStart, setTouchStart] = useState({ x: 0, y: 0 });
   const [touchEnd, setTouchEnd] = useState({ x: 0, y: 0 });
   const [swiping, setSwiping] = useState(false);
@@ -843,17 +865,33 @@ const TemplateCard = ({
     }
   };
 
+  // Debounced interaction handlers for better performance
+  const debouncedDislike = useDebounceCallback(() => {
+    recordMetric('Template_Dislike_Action', 1, 'increment');
+    applySwipeAction("left");
+  }, 300, []);
+
+  const debouncedLike = useDebounceCallback(() => {
+    recordMetric('Template_Like_Action', 1, 'increment');
+    applySwipeAction("right");
+  }, 300, []);
+
+  const debouncedFavorite = useDebounceCallback(() => {
+    recordMetric('Template_Favorite_Action', 1, 'increment');
+    handleFavorite(template._id);
+  }, 500, [template._id, handleFavorite]);
+
   // Button handlers
   const handleDislike = () => {
-    applySwipeAction("left");
+    debouncedDislike();
   };
 
   const handleLike = () => {
-    applySwipeAction("right");
+    debouncedLike();
   };
 
   const handleFavoriteClick = () => {
-    handleFavorite(template._id);
+    debouncedFavorite();
   };
   
   const toggleDetails = (e) => {
@@ -944,11 +982,22 @@ const TemplateCard = ({
               $isActive={isActive}
               $expanded={isImageExpanded}
               style={{
-                backgroundImage: `url(${media.url})`,
                 filter: `blur(${cardTransform.blur}px)`,
               }}
               onClick={() => !isImageExpanded && setIsImageExpanded(true)}
-            />
+            >
+              <OptimizedMediaImage
+                src={media.url}
+                alt={`${template.title || 'Template'} - Image ${index + 1}`}
+                objectFit={isImageExpanded ? 'contain' : 'cover'}
+                priority={index === 0 && isActive}
+                lazy={!isActive || index !== currentMediaIndex}
+                placeholder="shimmer"
+                hover={!isImageExpanded}
+                onLoad={() => recordMetric('Template_Image_Load', 1, 'increment')}
+                onError={() => recordMetric('Template_Image_Error', 1, 'increment')}
+              />
+            </MediaItem>
           );
         })}
         
