@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { Modal, IconButton, Typography } from '@mui/material';
-import { Close, Star, Favorite, GitHub } from '@mui/icons-material';
+import { Close, Star, Favorite, GitHub, ZoomIn, ZoomOut, RestartAlt } from '@mui/icons-material';
 import { templateApi } from "../services/api";
 import { useAuth } from '../context/AuthContext';
 
@@ -432,6 +432,54 @@ const MediaIndicator = styled.div`
   }
 `;
 
+const ZoomControls = styled.div`
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 8px;
+  border-radius: 8px;
+  z-index: 10;
+`;
+
+const ZoomButton = styled.button`
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const ZoomableImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: ${props => props.$zoom > 1 ? 'contain' : 'cover'};
+  transform: scale(${props => props.$zoom});
+  transition: transform 0.3s ease;
+  cursor: ${props => props.$zoom > 1 ? 'grab' : 'default'};
+  
+  &:active {
+    cursor: ${props => props.$zoom > 1 ? 'grabbing' : 'default'};
+  }
+`;
+
 const TrendingPage = () => {
   const { currentUser } = useAuth();
   const [mostLiked, setMostLiked] = useState([]);
@@ -441,6 +489,11 @@ const TrendingPage = () => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const [imageZoom, setImageZoom] = useState(1);
+  const [isLiked, setIsLiked] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [favoriteCount, setFavoriteCount] = useState(0);
 
   useEffect(() => {
     const fetchTrendingTemplates = async () => {
@@ -469,6 +522,11 @@ const TrendingPage = () => {
   const handleTemplateClick = (template) => {
     setSelectedTemplate(template);
     setCurrentMediaIndex(0);
+    setImageZoom(1);
+    setIsLiked(template.isLiked || false);
+    setIsFavorited(template.isFavorited || false);
+    setLikeCount(template.likeCount || 0);
+    setFavoriteCount(template.favoriteCount || 0);
     setModalOpen(true);
   };
 
@@ -476,6 +534,43 @@ const TrendingPage = () => {
     setModalOpen(false);
     setSelectedTemplate(null);
     setCurrentMediaIndex(0);
+    setImageZoom(1);
+  };
+
+  const handleZoomIn = () => {
+    setImageZoom(prev => Math.min(prev + 0.25, 3));
+  };
+
+  const handleZoomOut = () => {
+    setImageZoom(prev => Math.max(prev - 0.25, 0.5));
+  };
+
+  const handleZoomReset = () => {
+    setImageZoom(1);
+  };
+
+  const handleLike = async () => {
+    if (!currentUser || !selectedTemplate) return;
+    
+    try {
+      const response = await templateApi.likeTemplate(selectedTemplate.id);
+      setIsLiked(!isLiked);
+      setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+    } catch (error) {
+      console.error('Error liking template:', error);
+    }
+  };
+
+  const handleFavorite = async () => {
+    if (!currentUser || !selectedTemplate) return;
+    
+    try {
+      const response = await templateApi.favoriteTemplate(selectedTemplate.id);
+      setIsFavorited(!isFavorited);
+      setFavoriteCount(prev => isFavorited ? prev - 1 : prev + 1);
+    } catch (error) {
+      console.error('Error favoriting template:', error);
+    }
   };
 
   const getTemplateMedia = (template) => {
@@ -603,7 +698,35 @@ const TrendingPage = () => {
                     playsInline
                   />
                 ) : (
-                  <ModalImage src={currentMedia.url} alt={selectedTemplate.title} />
+                  <>
+                    <ZoomableImage 
+                      src={currentMedia.url} 
+                      alt={selectedTemplate.title}
+                      $zoom={imageZoom}
+                    />
+                    <ZoomControls>
+                      <ZoomButton 
+                        onClick={handleZoomOut}
+                        disabled={imageZoom <= 0.5}
+                        title="Zoom Out"
+                      >
+                        <ZoomOut fontSize="small" />
+                      </ZoomButton>
+                      <ZoomButton 
+                        onClick={handleZoomReset}
+                        title="Reset Zoom"
+                      >
+                        <RestartAlt fontSize="small" />
+                      </ZoomButton>
+                      <ZoomButton 
+                        onClick={handleZoomIn}
+                        disabled={imageZoom >= 3}
+                        title="Zoom In"
+                      >
+                        <ZoomIn fontSize="small" />
+                      </ZoomButton>
+                    </ZoomControls>
+                  </>
                 )}
                 
                 {mediaFiles.length > 1 && (
@@ -630,8 +753,12 @@ const TrendingPage = () => {
             </ModalTagsContainer>
             
             <ModalActions>
-              <ActionButton className="secondary">
-                <Star /> Add to Favorites
+              <ActionButton 
+                className={isFavorited ? "primary" : "secondary"}
+                onClick={handleFavorite}
+                disabled={!currentUser}
+              >
+                <Star /> {isFavorited ? 'Favorited' : 'Add to Favorites'} ({favoriteCount})
               </ActionButton>
               
               {selectedTemplate.githubLink && (
@@ -640,8 +767,12 @@ const TrendingPage = () => {
                 </ActionButton>
               )}
               
-              <ActionButton className="secondary">
-                <Favorite /> Like
+              <ActionButton 
+                className={isLiked ? "primary" : "secondary"}
+                onClick={handleLike}
+                disabled={!currentUser}
+              >
+                <Favorite /> {isLiked ? 'Liked' : 'Like'} ({likeCount})
               </ActionButton>
             </ModalActions>
           </ModalContent>

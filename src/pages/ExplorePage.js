@@ -5,7 +5,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import FilterPanel from "../components/FilterPanel";
 import QuickFilters from "../components/QuickFilters";
 import { Pagination, Typography, Box, Modal, IconButton } from "@mui/material";
-import { Close, Star, Favorite, Download, GitHub } from "@mui/icons-material";
+import { Close, Star, Favorite, Download, GitHub, ZoomIn, ZoomOut, RestartAlt } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 
 const ExploreContainer = styled.div`
@@ -254,11 +254,58 @@ const MediaIndicator = styled.div`
   border-radius: 50%;
   background: ${props => props.$active ? 'white' : 'rgba(255, 255, 255, 0.5)'};
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   
   &:hover {
     background: white;
-    transform: scale(1.2);
+  }
+`;
+
+const ZoomControls = styled.div`
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 8px;
+  border-radius: 8px;
+  z-index: 10;
+`;
+
+const ZoomButton = styled.button`
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const ZoomableImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: ${props => props.$zoom > 1 ? 'contain' : 'cover'};
+  transform: scale(${props => props.$zoom});
+  transition: transform 0.3s ease;
+  cursor: ${props => props.$zoom > 1 ? 'grab' : 'default'};
+  
+  &:active {
+    cursor: ${props => props.$zoom > 1 ? 'grabbing' : 'default'};
   }
 `;
 
@@ -396,6 +443,11 @@ const ExplorePage = () => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const [imageZoom, setImageZoom] = useState(1);
+  const [isLiked, setIsLiked] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [favoriteCount, setFavoriteCount] = useState(0);
 
   // Initialize filters from URL parameters
   useEffect(() => {
@@ -470,6 +522,11 @@ const ExplorePage = () => {
   const handleTemplateClick = (template) => {
     setSelectedTemplate(template);
     setCurrentMediaIndex(0);
+    setImageZoom(1);
+    setIsLiked(template.isLiked || false);
+    setIsFavorited(template.isFavorited || false);
+    setLikeCount(template.likes || 0);
+    setFavoriteCount(template.favorites || 0);
     setModalOpen(true);
   };
 
@@ -477,6 +534,7 @@ const ExplorePage = () => {
     setModalOpen(false);
     setSelectedTemplate(null);
     setCurrentMediaIndex(0);
+    setImageZoom(1);
   };
 
   const getTemplateMedia = (template) => {
@@ -499,6 +557,62 @@ const ExplorePage = () => {
   const handleDownload = () => {
     if (selectedTemplate?.githubLink) {
       window.open(selectedTemplate.githubLink, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleZoomIn = () => {
+    setImageZoom(prev => Math.min(prev + 0.5, 3));
+  };
+
+  const handleZoomOut = () => {
+    setImageZoom(prev => Math.max(prev - 0.5, 0.5));
+  };
+
+  const handleZoomReset = () => {
+    setImageZoom(1);
+  };
+
+  const handleLike = async () => {
+    if (!currentUser || !selectedTemplate) return;
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/templates/${selectedTemplate._id}/like`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setIsLiked(data.isLiked);
+        setLikeCount(data.likes);
+      }
+    } catch (error) {
+      console.error('Error liking template:', error);
+    }
+  };
+
+  const handleFavorite = async () => {
+    if (!currentUser || !selectedTemplate) return;
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/templates/${selectedTemplate._id}/favorite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setIsFavorited(data.isFavorited);
+        setFavoriteCount(data.favorites);
+      }
+    } catch (error) {
+      console.error('Error favoriting template:', error);
     }
   };
 
@@ -581,7 +695,35 @@ const ExplorePage = () => {
                     playsInline
                   />
                 ) : (
-                  <ModalImage src={currentMedia.url} alt={selectedTemplate.title} />
+                  <>
+                    <ZoomableImage 
+                      src={currentMedia.url} 
+                      alt={selectedTemplate.title}
+                      $zoom={imageZoom}
+                    />
+                    <ZoomControls>
+                      <ZoomButton 
+                        onClick={handleZoomOut}
+                        disabled={imageZoom <= 0.5}
+                        title="Zoom Out"
+                      >
+                        <ZoomOut fontSize="small" />
+                      </ZoomButton>
+                      <ZoomButton 
+                        onClick={handleZoomReset}
+                        title="Reset Zoom"
+                      >
+                        <RestartAlt fontSize="small" />
+                      </ZoomButton>
+                      <ZoomButton 
+                        onClick={handleZoomIn}
+                        disabled={imageZoom >= 3}
+                        title="Zoom In"
+                      >
+                        <ZoomIn fontSize="small" />
+                      </ZoomButton>
+                    </ZoomControls>
+                  </>
                 )}
                 
                 {mediaFiles.length > 1 && (
@@ -608,8 +750,12 @@ const ExplorePage = () => {
             </ModalTagsContainer>
             
             <ModalActions>
-              <ActionButton className="secondary">
-                <Star /> Add to Favorites
+              <ActionButton 
+                className={isFavorited ? "primary" : "secondary"}
+                onClick={handleFavorite}
+                disabled={!currentUser}
+              >
+                <Star /> {isFavorited ? 'Favorited' : 'Add to Favorites'} ({favoriteCount})
               </ActionButton>
               
               {selectedTemplate.githubLink && (
@@ -618,8 +764,12 @@ const ExplorePage = () => {
                 </ActionButton>
               )}
               
-              <ActionButton className="secondary">
-                <Favorite /> Like
+              <ActionButton 
+                className={isLiked ? "primary" : "secondary"}
+                onClick={handleLike}
+                disabled={!currentUser}
+              >
+                <Favorite /> {isLiked ? 'Liked' : 'Like'} ({likeCount})
               </ActionButton>
             </ModalActions>
           </ModalContent>
