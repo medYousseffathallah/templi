@@ -465,7 +465,7 @@ const OptimizedImage = ({
             objectPosition={objectPosition}
             loading={priority ? 'eager' : 'lazy'}
             loaded={imageState === 'loaded'}
-            loading={imageState === 'loading'}
+            isLoading={imageState === 'loading'}
             error={imageState === 'error'}
             hover={hover}
             onLoad={handleImageLoad}
