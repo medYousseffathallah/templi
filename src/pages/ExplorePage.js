@@ -7,6 +7,8 @@ import QuickFilters from "../components/QuickFilters";
 import { Pagination, Typography, Box, Modal, IconButton } from "@mui/material";
 import { Close, Star, Favorite, Download, GitHub, ZoomIn, ZoomOut, RestartAlt } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
+import { TemplateGridSkeleton, LoadingState } from "../components/SkeletonLoader";
+
 
 const ExploreContainer = styled.div`
   display: flex;
@@ -398,24 +400,7 @@ const Tag = styled.span`
   }
 `;
 
-const LoadingSpinner = styled.div`
-  border: 4px solid rgba(0, 0, 0, 0.1);
-  border-radius: 50%;
-  border-top: 4px solid var(--secondary-main);
-  width: 48px;
-  height: 48px;
-  animation: spin 1s linear infinite;
-  margin: 40px auto;
-
-  @keyframes spin {
-    0% {
-      transform: rotate(0deg);
-    }
-    100% {
-      transform: rotate(360deg);
-    }
-  }
-`;
+// Removed LoadingSpinner - now using SkeletonLoader components
 
 const ErrorMessage = styled.div`
   text-align: center;
@@ -434,6 +419,7 @@ const ExplorePage = () => {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalTemplates, setTotalTemplates] = useState(0);
@@ -494,6 +480,8 @@ const ExplorePage = () => {
             interactionApi.getUserInteractions(userId, 'favorite')
           ]);
           
+
+          
           const likedTemplateIds = new Set(
               (likesResponse.data || []).map(interaction => 
                 interaction.template._id || interaction.template.id || interaction.template
@@ -522,6 +510,7 @@ const ExplorePage = () => {
       setTotalPages(response.data.totalPages);
       setTotalTemplates(response.data.totalTemplates);
       setCurrentPage(response.data.currentPage);
+      
       setLoading(false);
     } catch (err) {
       console.error("Error fetching templates:", err);
@@ -815,7 +804,9 @@ const ExplorePage = () => {
           </ResultsCount>
         </ResultsHeader>
 
-        {loading && <LoadingSpinner />}
+        {loading && (
+          <TemplateGridSkeleton count={12} />
+        )}
         
         {error && <ErrorMessage>{error}</ErrorMessage>}
         

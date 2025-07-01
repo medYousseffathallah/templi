@@ -1,7 +1,35 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled, { keyframes, css } from 'styled-components';
-import { useLazyLoading } from '../hooks/useMediaPreloader';
-import { recordMetric, startTiming } from '../utils/performanceMonitor';
+import { SkeletonImage } from './SkeletonLoader';
+
+// Simple lazy loading hook without preloader
+const useLazyLoading = ({ threshold = 0.1, rootMargin = '50px', enabled = true } = {}) => {
+  const [isVisible, setIsVisible] = useState(!enabled);
+  const ref = useRef();
+
+  useEffect(() => {
+    if (!enabled || !ref.current) {
+      setIsVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold, rootMargin }
+    );
+
+    observer.observe(ref.current);
+
+    return () => observer.disconnect();
+  }, [enabled, threshold, rootMargin]);
+
+  return { isVisible, ref };
+};
 
 // Animations
 const fadeIn = keyframes`
@@ -52,10 +80,11 @@ const StyledImage = styled.img`
   transition: opacity 0.3s ease, transform 0.3s ease;
   
   ${props => props.loaded && css`
+    opacity: 1;
     animation: ${fadeIn} 0.3s ease;
   `}
   
-  ${props => props.loading && css`
+  ${props => props.isLoading && css`
     opacity: 0;
   `}
   
@@ -98,6 +127,33 @@ const PlaceholderContainer = styled.div`
   
   transition: opacity 0.3s ease;
   opacity: ${props => props.show ? 1 : 0};
+  
+  .loading-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: ${props => props.theme.colors?.gray?.[600] || '#6b7280'};
+  }
+  
+  .loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid ${props => props.theme.colors?.gray?.[300] || '#d1d5db'};
+    border-top: 2px solid ${props => props.theme.colors?.primary?.main || '#3b82f6'};
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  .loading-text {
+    font-size: 12px;
+    font-weight: 500;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
   pointer-events: none;
 `;
 
@@ -150,6 +206,27 @@ const ProgressBar = styled.div`
   opacity: ${props => props.show ? 1 : 0};
 `;
 
+// Get image type from URL
+const getImageType = (url) => {
+  if (!url) return '';
+  const extension = url.split('.').pop()?.toLowerCase();
+  switch (extension) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'webp':
+      return 'image/webp';
+    case 'gif':
+      return 'image/gif';
+    case 'svg':
+      return 'image/svg+xml';
+    default:
+      return '';
+  }
+};
+
 /**
  * OptimizedImage Component
  * Provides lazy loading, WebP support, progressive enhancement, and error handling
@@ -165,6 +242,7 @@ const OptimizedImage = ({
   placeholder = 'shimmer', // 'shimmer', 'pulse', 'blur', 'color', or custom component
   placeholderColor,
   blurDataURL,
+  fallbackSrc, // Fallback image URL when main image fails
   priority = false,
   lazy = true,
   webp = true,
@@ -186,11 +264,12 @@ const OptimizedImage = ({
 }) => {
   const [imageState, setImageState] = useState('loading');
   const [retryCount, setRetryCount] = useState(0);
-  const [loadProgress, setLoadProgress] = useState(0);
+  const [currentSrc, setCurrentSrc] = useState(src);
+  const [usingFallback, setUsingFallback] = useState(false);
+  const [internalProgress, setInternalProgress] = useState(0);
   const imageRef = useRef(null);
   const retryTimeoutRef = useRef(null);
-  const loadTimerRef = useRef(null);
-  
+    
   // Lazy loading
   const { isVisible, ref: lazyRef } = useLazyLoading({
     threshold: 0.1,
@@ -200,46 +279,57 @@ const OptimizedImage = ({
   
   const shouldLoad = !lazy || priority || isVisible;
 
+  // Validate URL
+  const isValidUrl = useCallback((url) => {
+    if (!url || typeof url !== 'string') return false;
+    
+    // Check for basic URL patterns
+    try {
+      // Allow relative URLs, data URLs, and absolute URLs
+      if (url.startsWith('data:') || url.startsWith('/') || url.startsWith('./') || url.startsWith('../')) {
+        return true;
+      }
+      
+      // Validate absolute URLs
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  // Reset state when src changes
+  useEffect(() => {
+    if (src !== currentSrc && !usingFallback) {
+      setCurrentSrc(src);
+      setUsingFallback(false);
+      setImageState('loading');
+      setRetryCount(0);
+    }
+  }, [src, currentSrc, usingFallback]);
+
   // Generate optimized image sources
   const generateSources = useCallback(() => {
-    if (!src) return { optimizedSrc: '', sources: [] };
-    
-    const sources = [];
-    let optimizedSrc = src;
-    
-    // Add WebP support if enabled
-    if (webp && typeof src === 'string') {
-      // Check if we can generate WebP version
-      const webpSrc = src.replace(/\.(jpg|jpeg|png)$/i, '.webp');
-      if (webpSrc !== src) {
-        sources.push({
-          srcSet: webpSrc,
-          type: 'image/webp'
-        });
-      }
+    if (!currentSrc || !isValidUrl(currentSrc)) {
+      console.warn('OptimizedImage: Invalid or missing src URL:', currentSrc);
+      return { optimizedSrc: '', sources: [] };
     }
     
-    // Add original format
-    sources.push({
-      srcSet: srcSet || src,
-      type: getImageType(src)
-    });
+    // Simplified approach - just use the direct URL
+    const sources = [{
+      srcSet: srcSet || currentSrc,
+      type: getImageType(currentSrc)
+    }];
     
-    return { optimizedSrc, sources };
-  }, [src, webp, srcSet]);
+    return { optimizedSrc: currentSrc, sources };
+  }, [currentSrc, srcSet, isValidUrl]);
   
   const { optimizedSrc, sources } = generateSources();
 
   // Handle image loading
   const handleImageLoad = useCallback((event) => {
-    if (loadTimerRef.current) {
-      const loadTime = loadTimerRef.current.end();
-      recordMetric('Image_Load_Success', 1, 'increment');
-      recordMetric('Image_Load_Time', loadTime);
-    }
-    
     setImageState('loaded');
-    setLoadProgress(100);
+    setInternalProgress(100);
     
     if (onLoad) {
       onLoad(event);
@@ -248,16 +338,33 @@ const OptimizedImage = ({
 
   // Handle image error
   const handleImageError = useCallback((event) => {
-    if (loadTimerRef.current) {
-      loadTimerRef.current.end();
-    }
-    
-    recordMetric('Image_Load_Error', 1, 'increment');
     setImageState('error');
-    setLoadProgress(0);
+    setInternalProgress(0);
+    
+    // Log error details for debugging
+    console.warn('OptimizedImage: Failed to load image', {
+      src: optimizedSrc,
+      originalSrc: src,
+      currentSrc,
+      usingFallback,
+      fallbackSrc,
+      error: event.target?.error,
+      retryCount,
+      maxRetries
+    });
     
     if (onError) {
       onError(event);
+    }
+    
+    // Try fallback image if available and not already using it
+    if (fallbackSrc && !usingFallback && isValidUrl(fallbackSrc)) {
+      console.log('OptimizedImage: Trying fallback image:', fallbackSrc);
+      setCurrentSrc(fallbackSrc);
+      setUsingFallback(true);
+      setImageState('loading');
+      setRetryCount(0);
+      return;
     }
     
     // Auto retry if enabled
@@ -266,13 +373,12 @@ const OptimizedImage = ({
         handleRetry();
       }, retryDelay * Math.pow(2, retryCount)); // Exponential backoff
     }
-  }, [onError, retryOnError, retryCount, maxRetries, retryDelay]);
+  }, [onError, retryOnError, retryCount, maxRetries, retryDelay, optimizedSrc, src, currentSrc, usingFallback, fallbackSrc, isValidUrl]);
 
   // Handle load start
   const handleLoadStart = useCallback(() => {
-    loadTimerRef.current = startTiming('Image_Load');
     setImageState('loading');
-    setLoadProgress(10);
+    setInternalProgress(10);
     
     if (onLoadStart) {
       onLoadStart();
@@ -283,7 +389,7 @@ const OptimizedImage = ({
   const handleRetry = useCallback(() => {
     setRetryCount(prev => prev + 1);
     setImageState('loading');
-    setLoadProgress(0);
+    setInternalProgress(0);
     
     // Force reload by changing src
     if (imageRef.current) {
@@ -301,7 +407,7 @@ const OptimizedImage = ({
   useEffect(() => {
     if (imageState === 'loading' && showProgress) {
       const interval = setInterval(() => {
-        setLoadProgress(prev => {
+        setInternalProgress(prev => {
           if (prev >= 90) return prev;
           return prev + Math.random() * 10;
         });
@@ -317,32 +423,8 @@ const OptimizedImage = ({
       if (retryTimeoutRef.current) {
         clearTimeout(retryTimeoutRef.current);
       }
-      if (loadTimerRef.current) {
-        loadTimerRef.current.end();
-      }
     };
   }, []);
-
-  // Get image type from URL
-  const getImageType = (url) => {
-    if (!url) return '';
-    const extension = url.split('.').pop()?.toLowerCase();
-    switch (extension) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'webp':
-        return 'image/webp';
-      case 'gif':
-        return 'image/gif';
-      case 'svg':
-        return 'image/svg+xml';
-      default:
-        return '';
-    }
-  };
 
   // Render placeholder
   const renderPlaceholder = () => {
@@ -390,6 +472,24 @@ const OptimizedImage = ({
       );
     }
     
+    if (placeholder === 'skeleton') {
+      return (
+        <PlaceholderContainer show={showPlaceholder}>
+          <SkeletonImage 
+            width="100%" 
+            height="100%" 
+            animation="shimmer" 
+            borderRadius={borderRadius || '8px'}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0
+            }}
+          />
+        </PlaceholderContainer>
+      );
+    }
+    
     return (
       <PlaceholderContainer
         show={showPlaceholder}
@@ -397,8 +497,9 @@ const OptimizedImage = ({
         pulse={placeholder === 'pulse'}
       >
         {imageState === 'loading' && (
-          <div style={{ fontSize: '12px', color: '#6b7280' }}>
-            Loading...
+          <div className="loading-indicator">
+            <div className="loading-spinner"></div>
+            <span className="loading-text">Loading...</span>
           </div>
         )}
       </PlaceholderContainer>
@@ -412,6 +513,11 @@ const OptimizedImage = ({
     return (
       <ErrorContainer>
         <div>Failed to load image</div>
+        {process.env.NODE_ENV === 'development' && (
+          <div style={{ fontSize: '10px', marginTop: '4px', opacity: 0.7 }}>
+            {usingFallback ? 'Fallback URL' : 'Original URL'}: {currentSrc?.substring(0, 50)}{currentSrc?.length > 50 ? '...' : ''}
+          </div>
+        )}
         {retryOnError && retryCount < maxRetries && (
           <RetryButton
             onClick={handleRetry}
@@ -419,6 +525,11 @@ const OptimizedImage = ({
           >
             Retry ({retryCount + 1}/{maxRetries})
           </RetryButton>
+        )}
+        {retryCount >= maxRetries && (
+          <div style={{ fontSize: '10px', marginTop: '4px', color: '#ef4444' }}>
+            Max retries reached
+          </div>
         )}
       </ErrorContainer>
     );
@@ -430,7 +541,7 @@ const OptimizedImage = ({
     
     return (
       <ProgressBar
-        progress={loadProgress}
+        progress={internalProgress}
         show={imageState === 'loading'}
       />
     );
@@ -447,33 +558,23 @@ const OptimizedImage = ({
       style={style}
       {...props}
     >
-      {shouldLoad && optimizedSrc && (
-        <picture>
-          {sources.map((source, index) => (
-            <source
-              key={index}
-              srcSet={source.srcSet}
-              type={source.type}
-              sizes={sizes}
-            />
-          ))}
-          <StyledImage
-            ref={imageRef}
-            src={optimizedSrc}
-            alt={alt}
-            objectFit={objectFit}
-            objectPosition={objectPosition}
-            loading={priority ? 'eager' : 'lazy'}
-            loaded={imageState === 'loaded'}
-            isLoading={imageState === 'loading'}
-            error={imageState === 'error'}
-            hover={hover}
-            onLoad={handleImageLoad}
-            onError={handleImageError}
-            onLoadStart={handleLoadStart}
-            sizes={sizes}
-          />
-        </picture>
+      {shouldLoad && optimizedSrc && imageState !== 'error' && (
+        <StyledImage
+          ref={imageRef}
+          src={optimizedSrc}
+          alt={alt}
+          objectFit={objectFit}
+          objectPosition={objectPosition}
+          loading={priority ? 'eager' : 'lazy'}
+          loaded={imageState === 'loaded'}
+          isLoading={imageState === 'loading'}
+          error={imageState === 'error'}
+          hover={hover}
+          onLoad={handleImageLoad}
+          onError={handleImageError}
+          onLoadStart={handleLoadStart}
+          sizes={sizes}
+        />
       )}
       
       {renderPlaceholder()}

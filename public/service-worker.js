@@ -1,7 +1,7 @@
 // Service Worker for Templi - Template Explorer
 
-const CACHE_NAME = 'templi-cache-v1';
-const RUNTIME_CACHE = 'templi-runtime-v1';
+const CACHE_NAME = 'templi-cache-v2';
+const RUNTIME_CACHE = 'templi-runtime-v2';
 
 // Resources to cache on install
 const PRECACHE_URLS = [

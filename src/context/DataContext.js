@@ -49,8 +49,8 @@ export const DataProvider = ({ children }) => {
     setLoading(prev => ({ ...prev, trending: true }));
     try {
       const [mostLikedResponse, mostFavoritedResponse] = await Promise.all([
-        templateApi.getTrending('mostLiked'),
-        templateApi.getTrending('mostFavorited')
+        templateApi.getTrending('like'),
+        templateApi.getTrending('favorite')
       ]);
 
       const trendingData = {
@@ -67,7 +67,7 @@ export const DataProvider = ({ children }) => {
     } finally {
       setLoading(prev => ({ ...prev, trending: false }));
     }
-  }, [loading.trending, isFresh, cache.trending]);
+  }, [loading.trending, isFresh]);
 
   // Preload user interactions
   const preloadUserInteractions = useCallback(async () => {
@@ -100,7 +100,7 @@ export const DataProvider = ({ children }) => {
     } finally {
       setLoading(prev => ({ ...prev, interactions: false }));
     }
-  }, [isAuthenticated, currentUser, loading.interactions, isFresh, cache.userInteractions]);
+  }, [isAuthenticated, currentUser, loading.interactions, isFresh]);
 
   // Preload user favorites
   const preloadFavorites = useCallback(async () => {
@@ -122,7 +122,7 @@ export const DataProvider = ({ children }) => {
     } finally {
       setLoading(prev => ({ ...prev, favorites: false }));
     }
-  }, [isAuthenticated, currentUser, loading.favorites, isFresh, cache.favorites]);
+  }, [isAuthenticated, currentUser, loading.favorites, isFresh]);
 
   // Preload notifications
   const preloadNotifications = useCallback(async () => {
@@ -144,7 +144,7 @@ export const DataProvider = ({ children }) => {
     } finally {
       setLoading(prev => ({ ...prev, notifications: false }));
     }
-  }, [isAuthenticated, currentUser, loading.notifications, isFresh, cache.notifications]);
+  }, [isAuthenticated, currentUser, loading.notifications, isFresh]);
 
   // Preload initial templates
   const preloadInitialTemplates = useCallback(async (page = 1, limit = 20) => {
@@ -171,7 +171,7 @@ export const DataProvider = ({ children }) => {
     } finally {
       setLoading(prev => ({ ...prev, templates: false }));
     }
-  }, [loading.templates, cache.templates]);
+  }, [loading.templates]);
 
   // Initialize preloading when user logs in
   useEffect(() => {

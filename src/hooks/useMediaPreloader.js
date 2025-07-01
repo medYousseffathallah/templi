@@ -4,10 +4,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 export const useMediaPreloader = () => {
   const [preloadedMedia, setPreloadedMedia] = useState(new Map());
   const [loadingMedia, setLoadingMedia] = useState(new Set());
+  const [loadingProgress, setLoadingProgress] = useState(new Map());
   const preloadQueue = useRef([]);
   const isProcessing = useRef(false);
+  const maxConcurrentLoads = useRef(3); // Limit concurrent loads
 
-  // Preload a single image
+  // Preload a single image with progress tracking
   const preloadImage = useCallback((src, priority = 'normal') => {
     return new Promise((resolve, reject) => {
       if (preloadedMedia.has(src)) {
@@ -29,25 +31,66 @@ export const useMediaPreloader = () => {
       }
 
       setLoadingMedia(prev => new Set(prev).add(src));
+      setLoadingProgress(prev => new Map(prev).set(src, 0));
 
       const img = new Image();
+      
+      // Simulate progress for images (since we can't track actual progress)
+      const simulateProgress = () => {
+        let progress = 0;
+        const interval = setInterval(() => {
+          progress += Math.random() * 30;
+          if (progress >= 90) {
+            clearInterval(interval);
+            progress = 90;
+          }
+          setLoadingProgress(prev => new Map(prev).set(src, progress));
+        }, 100);
+        return interval;
+      };
+      
+      const progressInterval = simulateProgress();
+      
       img.onload = () => {
-        setPreloadedMedia(prev => new Map(prev).set(src, { type: 'image', loaded: true, element: img }));
+        clearInterval(progressInterval);
+        setLoadingProgress(prev => new Map(prev).set(src, 100));
+        
+        setTimeout(() => {
+          setPreloadedMedia(prev => new Map(prev).set(src, { 
+            type: 'image', 
+            loaded: true, 
+            element: img,
+            loadTime: Date.now()
+          }));
+          setLoadingMedia(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(src);
+            return newSet;
+          });
+          setLoadingProgress(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(src);
+            return newMap;
+          });
+          resolve(src);
+        }, 200); // Small delay to show 100% progress
+      };
+      
+      img.onerror = () => {
+        clearInterval(progressInterval);
         setLoadingMedia(prev => {
           const newSet = new Set(prev);
           newSet.delete(src);
           return newSet;
         });
-        resolve(src);
-      };
-      img.onerror = () => {
-        setLoadingMedia(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(src);
-          return newSet;
+        setLoadingProgress(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(src);
+          return newMap;
         });
         reject(new Error(`Failed to load image: ${src}`));
       };
+      
       img.src = src;
     });
   }, [preloadedMedia, loadingMedia]);
@@ -196,6 +239,11 @@ export const useMediaPreloader = () => {
     });
   }, []);
 
+  // Get loading progress for a specific media item
+  const getLoadingProgress = useCallback((src) => {
+    return loadingProgress.get(src) || 0;
+  }, [loadingProgress]);
+
   return {
     preloadImage,
     preloadVideo,
@@ -204,6 +252,7 @@ export const useMediaPreloader = () => {
     isPreloaded,
     isLoading,
     getPreloadedMedia,
+    getLoadingProgress,
     clearPreloaded,
     preloadedCount: preloadedMedia.size,
     loadingCount: loadingMedia.size

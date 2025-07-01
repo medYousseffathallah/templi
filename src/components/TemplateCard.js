@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import styled from "styled-components";
 import { useNavigate } from 'react-router-dom';
 import { Close, Star, Favorite, Info, ChevronLeft, ChevronRight, Fullscreen, FullscreenExit, Verified, Download, Upload, GetApp } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 import { interactionApi } from "../services/api";
 import OptimizedImage from './OptimizedImage';
+import OptimizedVideo from './OptimizedVideo';
 import { useDebounceCallback } from '../hooks/useDebounce';
-import { measureTemplateLoad, recordMetric, startTiming } from '../utils/performanceMonitor';
+
 
 const Card = styled.div`
   position: relative;
@@ -514,19 +515,8 @@ const TemplateCard = ({
   const navigate = useNavigate();
   
   // Performance monitoring
-  const loadTimerRef = useRef(null);
-  
   useEffect(() => {
-    if (template && !loadTimerRef.current) {
-      loadTimerRef.current = measureTemplateLoad(template._id, 'Render');
-      recordMetric('Template_Card_Mount', 1, 'increment');
-    }
-    
-    return () => {
-      if (loadTimerRef.current) {
-        loadTimerRef.current.end();
-      }
-    };
+    // Template card mounted
   }, [template]);
   const [touchStart, setTouchStart] = useState({ x: 0, y: 0 });
   const [touchEnd, setTouchEnd] = useState({ x: 0, y: 0 });
@@ -867,17 +857,14 @@ const TemplateCard = ({
 
   // Debounced interaction handlers for better performance
   const debouncedDislike = useDebounceCallback(() => {
-    recordMetric('Template_Dislike_Action', 1, 'increment');
     applySwipeAction("left");
   }, 300, []);
 
   const debouncedLike = useDebounceCallback(() => {
-    recordMetric('Template_Like_Action', 1, 'increment');
     applySwipeAction("right");
   }, 300, []);
 
   const debouncedFavorite = useDebounceCallback(() => {
-    recordMetric('Template_Favorite_Action', 1, 'increment');
     handleFavorite(template._id);
   }, 500, [template._id, handleFavorite]);
 
@@ -962,7 +949,7 @@ const TemplateCard = ({
           const isActive = index === currentMediaIndex;
           
           return isVideo ? (
-            <VideoElement
+            <OptimizedVideo
               key={index}
               ref={el => videoRefs.current[index] = el}
               src={media.url}
@@ -971,10 +958,14 @@ const TemplateCard = ({
               muted
               loop
               playsInline
+              placeholder="skeleton"
+              showProgress={true}
+              showPlayButton={false}
               style={{
                 filter: `blur(${cardTransform.blur}px)`,
               }}
               onClick={() => !isVideoExpanded && setIsVideoExpanded(true)}
+
             />
           ) : (
             <MediaItem
@@ -992,10 +983,12 @@ const TemplateCard = ({
                 objectFit={isImageExpanded ? 'contain' : 'cover'}
                 priority={index === 0 && isActive}
                 lazy={!isActive || index !== currentMediaIndex}
-                placeholder="shimmer"
+                placeholder="skeleton"
                 hover={!isImageExpanded}
-                onLoad={() => recordMetric('Template_Image_Load', 1, 'increment')}
-                onError={() => recordMetric('Template_Image_Error', 1, 'increment')}
+                showProgress={true}
+                fallbackSrc="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f3f4f6'/%3E%3Ctext x='200' y='150' text-anchor='middle' dy='0.3em' font-family='Arial, sans-serif' font-size='16' fill='%236b7280'%3EImage not available%3C/text%3E%3C/svg%3E"
+                maxRetries={2}
+                retryDelay={500}
               />
             </MediaItem>
           );

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect } from 'react';
 import "./App.css";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
@@ -15,6 +15,7 @@ import SettingsPage from "./pages/SettingsPage";
 import styled from "styled-components";
 import { AuthProvider } from "./context/AuthContext";
 import { DataProvider } from "./context/DataContext";
+
 import theme from "./theme";
 
 const AppContainer = styled.div`
@@ -100,6 +101,7 @@ function App() {
                 element={<SettingsPage />}
               />
             </Routes>
+
           </AppContainer>
         </Router>
       </DataProvider>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import { useThrottleCallback } from '../hooks/useDebounce';
-import { recordMetric } from '../utils/performanceMonitor';
+
 
 const Container = styled.div`
   height: ${props => props.height}px;

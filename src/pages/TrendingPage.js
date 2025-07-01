@@ -4,6 +4,8 @@ import { Modal, IconButton, Typography } from '@mui/material';
 import { Close, Star, Favorite, GitHub, ZoomIn, ZoomOut, RestartAlt } from '@mui/icons-material';
 import { templateApi, interactionApi } from "../services/api";
 import { useAuth } from '../context/AuthContext';
+import { TemplateGridSkeleton, LoadingState } from "../components/SkeletonLoader";
+
 
 const TrendingContainer = styled.div`
   padding: 24px;
@@ -486,6 +488,7 @@ const TrendingPage = () => {
   const [mostFavorited, setMostFavorited] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
@@ -828,7 +831,7 @@ const TrendingPage = () => {
     return (
       <TrendingContainer>
         <Title>Trending Templates</Title>
-        <LoadingSpinner />
+        <TemplateGridSkeleton count={8} />
       </TrendingContainer>
     );
   }
