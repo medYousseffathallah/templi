@@ -60,7 +60,9 @@ const pulse = keyframes`
 `;
 
 // Styled components
-const ImageContainer = styled.div`
+const ImageContainer = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['width', 'height', 'aspectRatio', 'borderRadius'].includes(prop)
+})`
   position: relative;
   display: inline-block;
   overflow: hidden;
@@ -72,7 +74,9 @@ const ImageContainer = styled.div`
   ${props => props.borderRadius && css`border-radius: ${props.borderRadius};`}
 `;
 
-const StyledImage = styled.img`
+const StyledImage = styled.img.withConfig({
+  shouldForwardProp: (prop) => !['objectFit', 'objectPosition', 'loaded', 'isLoading', 'error', 'hover'].includes(prop)
+})`
   width: 100%;
   height: 100%;
   object-fit: ${props => props.objectFit || 'cover'};
@@ -99,7 +103,9 @@ const StyledImage = styled.img`
   `}
 `;
 
-const PlaceholderContainer = styled.div`
+const PlaceholderContainer = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['shimmer', 'pulse', 'show'].includes(prop)
+})`
   position: absolute;
   top: 0;
   left: 0;
@@ -195,7 +201,9 @@ const RetryButton = styled.button`
   }
 `;
 
-const ProgressBar = styled.div`
+const ProgressBar = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['progress', 'show'].includes(prop)
+})`
   position: absolute;
   bottom: 0;
   left: 0;

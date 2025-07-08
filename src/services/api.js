@@ -94,6 +94,12 @@ export const templateApi = {
 
   // Get trending templates
   getTrending: (type) => api.get(`/templates/trending/${type}`),
+
+  // Get popular templates for inspiration
+  getTrendingForInspiration: (limit = 3) => api.get(`/templates/trending/like?limit=${limit}`),
+
+  // Get inspiration templates (mix of recent and popular)
+  getInspiration: (limit = 6) => api.get(`/templates/inspiration?limit=${limit}`),
 };
 
 // User API calls
@@ -103,6 +109,9 @@ export const userApi = {
 
   // Login user
   login: (credentials) => api.post("/users/login", credentials),
+
+  // Get current user (for token validation)
+  getCurrentUser: () => api.get("/users/me"),
 
   // Get user profile
   getProfile: (id) => api.get(`/users/${id}`),

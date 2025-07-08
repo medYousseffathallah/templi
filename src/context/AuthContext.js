@@ -11,15 +11,41 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Check if user is logged in from localStorage
-    const token = localStorage.getItem("token");
-    const user = localStorage.getItem("user");
+    const validateStoredAuth = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const user = localStorage.getItem("user");
 
-    if (token && user) {
-      setCurrentUser(JSON.parse(user));
-    }
+        if (token && user) {
+          // Validate token by making a request to verify it's still valid
+          try {
+            const response = await userApi.getCurrentUser();
+            if (response.data) {
+              setCurrentUser(response.data);
+              // Update stored user data in case it changed
+              localStorage.setItem("user", JSON.stringify(response.data));
+            } else {
+              // Token is invalid, clear storage
+              localStorage.removeItem("token");
+              localStorage.removeItem("user");
+              setCurrentUser(null);
+            }
+          } catch (error) {
+            // Token validation failed, clear storage
+            console.log("Token validation failed, clearing auth data");
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            setCurrentUser(null);
+          }
+        }
+      } catch (error) {
+        console.error("Error validating stored auth:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    setLoading(false);
+    validateStoredAuth();
   }, []);
 
   const login = async (email, password) => {

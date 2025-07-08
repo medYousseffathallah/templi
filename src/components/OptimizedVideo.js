@@ -23,7 +23,9 @@ const pulse = keyframes`
 `;
 
 // Styled components
-const VideoContainer = styled.div`
+const VideoContainer = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['borderRadius'].includes(prop)
+})`
   position: relative;
   width: 100%;
   height: 100%;
@@ -32,7 +34,9 @@ const VideoContainer = styled.div`
   border-radius: ${props => props.borderRadius || '8px'};
 `;
 
-const StyledVideo = styled.video`
+const StyledVideo = styled.video.withConfig({
+  shouldForwardProp: (prop) => !['objectFit', 'objectPosition', 'loaded', 'loading', 'error'].includes(prop)
+})`
   width: 100%;
   height: 100%;
   object-fit: ${props => props.objectFit || 'cover'};
@@ -52,7 +56,9 @@ const StyledVideo = styled.video`
   `}
 `;
 
-const LoadingOverlay = styled.div`
+const LoadingOverlay = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['show', 'skeleton'].includes(prop)
+})`
   position: absolute;
   top: 0;
   left: 0;
@@ -107,7 +113,9 @@ const LoadingSubtext = styled.div`
   color: ${props => props.theme.colors?.gray?.[500] || '#9ca3af'};
 `;
 
-const ProgressBar = styled.div`
+const ProgressBar = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['progress', 'show'].includes(prop)
+})`
   position: absolute;
   bottom: 0;
   left: 0;
@@ -150,7 +158,9 @@ const RetryButton = styled.button`
   }
 `;
 
-const PlayButton = styled.button`
+const PlayButton = styled.button.withConfig({
+  shouldForwardProp: (prop) => !['show'].includes(prop)
+})`
   position: absolute;
   top: 50%;
   left: 50%;

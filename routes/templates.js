@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 const Template = require("../models/Template");
+const Interaction = require("../models/Interaction");
 
 // Get all templates
 router.get("/", async (req, res) => {
@@ -114,6 +115,47 @@ router.get("/discover", async (req, res) => {
       totalTemplates: count
     });
   } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Get inspiration templates
+router.get("/inspiration", async (req, res) => {
+  console.log("Inspiration endpoint hit with query:", req.query);
+  try {
+    const limit = parseInt(req.query.limit) || 6;
+    
+    // Get the most recent templates for inspiration
+    // Focus on newest, high-quality templates rather than old popular ones
+    const inspirationTemplates = await Template.find()
+      .populate('creator', 'name username email')
+      .sort({ createdAt: -1 }) // Most recent first
+      .limit(limit);
+    
+    // Add interaction counts for each template
+    const templatesWithCounts = await Promise.all(
+      inspirationTemplates.map(async (template) => {
+        const totalLikeCount = await Interaction.countDocuments({
+          template: template._id,
+          interactionType: "like"
+        });
+        
+        const totalFavoriteCount = await Interaction.countDocuments({
+          template: template._id,
+          interactionType: "favorite"
+        });
+        
+        return {
+          ...template.toObject(),
+          likeCount: totalLikeCount,
+          favoriteCount: totalFavoriteCount
+        };
+      })
+    );
+    
+    res.json(templatesWithCounts);
+  } catch (err) {
+    console.error("Error fetching inspiration templates:", err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -261,6 +303,8 @@ router.delete("/:id", getTemplate, async (req, res) => {
   }
 });
 
+
+
 // Get trending templates
 router.get("/trending/:type", async (req, res) => {
   try {
@@ -275,8 +319,6 @@ router.get("/trending/:type", async (req, res) => {
     // Calculate date for one week ago
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    
-    const Interaction = require("../models/Interaction");
     
     // Aggregate interactions to get trending templates
     const trendingTemplates = await Interaction.aggregate([
@@ -373,6 +415,27 @@ router.get("/trending/:type", async (req, res) => {
         };
       })
     );
+    
+    // If no trending templates found, fall back to recent templates
+    if (templatesWithCounts.length === 0) {
+      const fallbackTemplates = await Template.find()
+        .populate('creator', 'name username email')
+        .sort({ createdAt: -1 })
+        .limit(limit);
+      
+      // Add default interaction counts
+      const templatesWithDefaults = fallbackTemplates.map(template => ({
+        ...template.toObject(),
+        weeklyLikeCount: 0,
+        weeklyFavoriteCount: 0,
+        likeCount: 0,
+        favoriteCount: 0,
+        staticLikes: template.likes || 0,
+        staticDislikes: template.dislikes || 0
+      }));
+      
+      return res.json(templatesWithDefaults);
+    }
     
     res.json(templatesWithCounts);
   } catch (err) {

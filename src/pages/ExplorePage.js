@@ -690,13 +690,41 @@ const ExplorePage = () => {
             {currentMedia && (
               <ModalImageContainer>
                 {currentMedia.type === 'video' ? (
-                  <ModalVideo 
-                    src={currentMedia.url} 
-                    controls 
-                    muted 
-                    loop 
-                    playsInline
-                  />
+                  <>
+                    <ModalVideo 
+                      src={currentMedia.url} 
+                      controls 
+                      muted 
+                      loop 
+                      playsInline
+                      style={{
+                        transform: `scale(${imageZoom})`,
+                        transition: 'transform 0.3s ease'
+                      }}
+                    />
+                    <ZoomControls>
+                      <ZoomButton 
+                        onClick={handleZoomOut}
+                        disabled={imageZoom <= 0.5}
+                        title="Zoom Out"
+                      >
+                        <ZoomOut fontSize="small" />
+                      </ZoomButton>
+                      <ZoomButton 
+                        onClick={handleZoomReset}
+                        title="Reset Zoom"
+                      >
+                        <RestartAlt fontSize="small" />
+                      </ZoomButton>
+                      <ZoomButton 
+                        onClick={handleZoomIn}
+                        disabled={imageZoom >= 3}
+                        title="Zoom In"
+                      >
+                        <ZoomIn fontSize="small" />
+                      </ZoomButton>
+                    </ZoomControls>
+                  </>
                 ) : (
                   <>
                     <ZoomableImage 

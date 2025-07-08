@@ -85,6 +85,9 @@ import {
   RadioButtonUnchecked,
   ErrorOutline,
   Settings,
+  ZoomIn,
+  ZoomOut,
+  RestartAlt,
 } from "@mui/icons-material";
 
 const PageContainer = styled.div`
@@ -710,9 +713,58 @@ const MediaCounter = styled.div`
   font-size: 14px;
 `;
 
+const ZoomControls = styled.div`
+  position: absolute;
+  top: 80px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1001;
+`;
+
+const ZoomButton = styled(IconButton)`
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  color: white !important;
+  width: 40px;
+  height: 40px;
+  
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.9) !important;
+  }
+  
+  &:disabled {
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    color: rgba(255, 255, 255, 0.3) !important;
+  }
+`;
+
+const ZoomableMedia = styled.div`
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  
+  img, video {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: ${props => props.$zoom > 1 ? 'contain' : 'contain'};
+    transform: scale(${props => props.$zoom});
+    transition: transform 0.3s ease;
+    cursor: ${props => props.$zoom > 1 ? 'grab' : 'default'};
+    
+    &:active {
+      cursor: ${props => props.$zoom > 1 ? 'grabbing' : 'default'};
+    }
+  }
+`;
+
 // Full Preview Container Component
 const FullPreviewContainer = ({ uploadedFiles, open, onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [zoom, setZoom] = useState(1);
   
   console.log('FullPreviewContainer rendered:', { uploadedFiles: uploadedFiles?.length, open, filesLength: uploadedFiles?.length });
   
@@ -723,11 +775,25 @@ const FullPreviewContainer = ({ uploadedFiles, open, onClose }) => {
   const handlePrevious = () => {
     if (!uploadedFiles || uploadedFiles.length === 0) return;
     setCurrentIndex(prev => prev > 0 ? prev - 1 : uploadedFiles.length - 1);
+    setZoom(1); // Reset zoom when switching files
   };
   
   const handleNext = () => {
     if (!uploadedFiles || uploadedFiles.length === 0) return;
     setCurrentIndex(prev => prev < uploadedFiles.length - 1 ? prev + 1 : 0);
+    setZoom(1); // Reset zoom when switching files
+  };
+
+  const handleZoomIn = () => {
+    setZoom(prev => Math.min(prev + 0.5, 3));
+  };
+
+  const handleZoomOut = () => {
+    setZoom(prev => Math.max(prev - 0.5, 0.5));
+  };
+
+  const handleZoomReset = () => {
+    setZoom(1);
   };
   
   const handleKeyPress = useCallback((event) => {
@@ -749,10 +815,11 @@ const FullPreviewContainer = ({ uploadedFiles, open, onClose }) => {
     }
   }, [handleKeyPress, open]);
   
-  // Reset to first image when dialog opens
+  // Reset to first image and zoom when dialog opens
   useEffect(() => {
     if (open) {
       setCurrentIndex(0);
+      setZoom(1);
     }
   }, [open]);
   
@@ -820,24 +887,66 @@ const FullPreviewContainer = ({ uploadedFiles, open, onClose }) => {
             <Close />
           </IconButton>
           
-          <PreviewMedia>
-            {currentFile.file.type.startsWith('video/') ? (
+          {currentFile.file.type.startsWith('video/') ? (
+            <>
               <video
                 key={currentIndex} // Force re-render for autoplay
                 src={currentFile.preview}
                 autoPlay
                 muted
                 controls
-                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  objectFit: 'contain',
+                  transform: `scale(${zoom})`,
+                  transition: 'transform 0.3s ease',
+                  cursor: zoom > 1 ? 'grab' : 'default'
+                }}
+                onMouseDown={(e) => {
+                  if (zoom > 1) {
+                    e.target.style.cursor = 'grabbing';
+                  }
+                }}
+                onMouseUp={(e) => {
+                  if (zoom > 1) {
+                    e.target.style.cursor = 'grab';
+                  }
+                }}
               />
-            ) : (
+            </>
+          ) : (
+            <ZoomableMedia $zoom={zoom}>
               <img
                 src={currentFile.preview}
                 alt={`Preview ${currentIndex + 1}`}
-                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
               />
-            )}
-          </PreviewMedia>
+            </ZoomableMedia>
+          )}
+          
+          {/* Zoom Controls */}
+          <ZoomControls>
+            <ZoomButton
+              onClick={handleZoomOut}
+              disabled={zoom <= 0.5}
+              title="Zoom Out"
+            >
+              <ZoomOut fontSize="small" />
+            </ZoomButton>
+            <ZoomButton
+              onClick={handleZoomReset}
+              title="Reset Zoom"
+            >
+              <RestartAlt fontSize="small" />
+            </ZoomButton>
+            <ZoomButton
+              onClick={handleZoomIn}
+              disabled={zoom >= 3}
+              title="Zoom In"
+            >
+              <ZoomIn fontSize="small" />
+            </ZoomButton>
+          </ZoomControls>
           
           {uploadedFiles.length > 1 && (
             <>
@@ -1061,33 +1170,7 @@ const MenuProps = {
   },
 };
 
-// Example templates for inspiration
-const exampleTemplates = [
-  {
-    id: 1,
-    title: "Modern Dashboard UI Kit",
-    category: "Dashboard UI",
-    image: "https://cdn.dribbble.com/users/1615584/screenshots/15467705/media/9f9d5d54c1c3329c7f9f0f3f9f9c8e8a.jpg",
-    likes: 245,
-    downloads: 1200,
-  },
-  {
-    id: 2,
-    title: "E-commerce Mobile App Template",
-    category: "Mobile App UI",
-    image: "https://cdn.dribbble.com/users/1126935/screenshots/15463811/media/8db76c7ce48c4c2b3f002a876b8c0b0f.png",
-    likes: 189,
-    downloads: 850,
-  },
-  {
-    id: 3,
-    title: "Creative Portfolio Website",
-    category: "Web UI",
-    image: "https://cdn.dribbble.com/users/1615584/screenshots/15467705/media/9f9d5d54c1c3329c7f9f0f3f9f9c8e8a.jpg",
-    likes: 312,
-    downloads: 1500,
-  },
-];
+// Popular templates will be fetched from the database
 
 const UploadPage = () => {
   const { currentUser, isAuthenticated } = useAuth();
@@ -1149,6 +1232,11 @@ const UploadPage = () => {
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [compressionEnabled, setCompressionEnabled] = useState(true);
+  
+  // Popular templates state
+  const [popularTemplates, setPopularTemplates] = useState([]);
+  const [loadingPopularTemplates, setLoadingPopularTemplates] = useState(true);
+  const [popularTemplatesError, setPopularTemplatesError] = useState(null);
   
   // Category options
   const categoryOptions = [
@@ -1390,6 +1478,26 @@ const UploadPage = () => {
   }, [title, description, category, subCategory, frameworkTools, tags, githubLink, isPrivateRepo, 
       colorScheme, responsive, accessibilityLevel, languageSupport, visualStyle, layoutStructure,
       complexityLevel, responsiveness, performance, pricingTier, price, formIsDirty, isAuthenticated, isSubmitting]);
+
+  // Fetch trending templates for inspiration
+  useEffect(() => {
+    const fetchTrendingTemplates = async () => {
+      setLoadingPopularTemplates(true);
+      setPopularTemplatesError(null);
+      
+      try {
+        const response = await templateApi.getInspiration(3);
+        setPopularTemplates(response.data || []);
+      } catch (error) {
+        console.error('Error fetching trending templates:', error);
+        setPopularTemplatesError('Failed to load trending templates');
+      } finally {
+        setLoadingPopularTemplates(false);
+      }
+    };
+
+    fetchTrendingTemplates();
+  }, []);
   
   // Calculate quality score with detailed requirements
   const calculateQualityScore = useCallback(() => {
@@ -3358,37 +3466,100 @@ const UploadPage = () => {
               Popular Templates For Inspiration
             </Typography>
             
-            <Grid container spacing={3}>
-              {exampleTemplates.map((template, index) => (
-                <Grid item xs={12} sm={6} md={4} key={index}>
-                  <ExampleCard>
-                    <CardMedia
-                      component="img"
-                      height="140"
-                      image={template.image}
-                      alt={template.title}
-                    />
-                    <CardContent>
-                      <Typography gutterBottom variant="h6" component="div">
-                        {template.title}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        {template.category} • {template.framework}
-                      </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Star sx={{ color: 'gold', mr: 0.5 }} fontSize="small" />
-                        <Typography variant="body2" sx={{ mr: 1 }}>
-                          {template.rating}
+            {loadingPopularTemplates ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : popularTemplatesError ? (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <Typography variant="body2" color="error">
+                  {popularTemplatesError}
+                </Typography>
+              </Box>
+            ) : (
+              <Grid container spacing={3}>
+                {popularTemplates.map((template, index) => (
+                  <Grid item xs={12} sm={6} md={4} key={template._id || index}>
+                    <ExampleCard>
+                      {template.imageUrls && template.imageUrls.length > 0 ? (
+                        <CardMedia
+                          component="img"
+                          height="160"
+                          image={template.imageUrls[0]}
+                          alt={template.title}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                            e.target.nextSibling.style.display = 'flex';
+                            e.target.nextSibling.style.alignItems = 'center';
+                            e.target.nextSibling.style.justifyContent = 'center';
+                            e.target.nextSibling.style.height = '160px';
+                            e.target.nextSibling.style.color = 'white';
+                            e.target.nextSibling.innerHTML = `<div style="text-align: center;"><div style="font-size: 2rem; margin-bottom: 8px;">🎨</div><div>${template.title}</div></div>`;
+                          }}
+                        />
+                      ) : template.videoUrl ? (
+                        <CardMedia
+                          component="video"
+                          height="160"
+                          src={template.videoUrl}
+                          alt={template.title}
+                          controls={false}
+                          muted
+                          loop
+                          autoPlay
+                          style={{ objectFit: 'cover' }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                            e.target.nextSibling.style.display = 'flex';
+                            e.target.nextSibling.style.alignItems = 'center';
+                            e.target.nextSibling.style.justifyContent = 'center';
+                            e.target.nextSibling.style.height = '160px';
+                            e.target.nextSibling.style.color = 'white';
+                            e.target.nextSibling.innerHTML = `<div style="text-align: center;"><div style="font-size: 2rem; margin-bottom: 8px;">🎨</div><div>${template.title}</div></div>`;
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          height: '160px',
+                          color: 'white'
+                        }}>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🎨</div>
+                            <div>{template.title}</div>
+                          </div>
+                        </div>
+                      )}
+                      <div style={{ display: 'none' }}></div>
+                      <CardContent>
+                        <Typography gutterBottom variant="h6" component="div" sx={{ fontWeight: 600 }}>
+                          {template.title}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          ({template.downloads} downloads)
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          {template.category} • {template.subCategory}
                         </Typography>
-                      </Box>
-                    </CardContent>
-                  </ExampleCard>
-                </Grid>
-              ))}
-            </Grid>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Star sx={{ color: 'gold', mr: 0.5 }} fontSize="small" />
+                            <Typography variant="body2" sx={{ mr: 1 }}>
+                              ({template.likes || 0} likes)
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" color="text.secondary">
+                            {template.pricingTier}
+                          </Typography>
+                        </Box>
+                      </CardContent>
+                    </ExampleCard>
+                  </Grid>
+                ))}
+              </Grid>
+            )}
           </Box>
         )}
       </FormContainer>
