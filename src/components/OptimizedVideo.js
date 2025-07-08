@@ -24,12 +24,12 @@ const pulse = keyframes`
 
 // Styled components
 const VideoContainer = styled.div.withConfig({
-  shouldForwardProp: (prop) => !['borderRadius'].includes(prop)
+  shouldForwardProp: (prop) => !['borderRadius', 'allowZoom'].includes(prop)
 })`
   position: relative;
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  overflow: ${props => props.allowZoom ? 'visible' : 'hidden'};
   background-color: ${props => props.theme.colors?.gray?.[900] || '#111827'};
   border-radius: ${props => props.borderRadius || '8px'};
 `;
@@ -213,6 +213,8 @@ const OptimizedVideo = forwardRef(({
   retryOnError = true,
   maxRetries = 3,
   borderRadius,
+  allowZoom = false,
+  expanded = false,
   className,
   style,
   onLoad,
@@ -380,6 +382,7 @@ const OptimizedVideo = forwardRef(({
   return (
     <VideoContainer
       borderRadius={borderRadius}
+      allowZoom={allowZoom}
       className={className}
       style={style}
       {...props}
@@ -388,7 +391,7 @@ const OptimizedVideo = forwardRef(({
         ref={videoRef}
         src={src}
         poster={poster}
-        objectFit={objectFit}
+        objectFit={expanded ? 'contain' : (objectFit || 'cover')}
         objectPosition={objectPosition}
         autoPlay={autoPlay}
         muted={muted}

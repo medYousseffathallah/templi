@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import styled from "styled-components";
 import { useNavigate } from 'react-router-dom';
-import { Close, Star, Favorite, Info, ChevronLeft, ChevronRight, Fullscreen, FullscreenExit, Verified, Download, Upload, GetApp } from "@mui/icons-material";
+import { Close, Star, Favorite, Info, ChevronLeft, ChevronRight, Fullscreen, FullscreenExit, Verified, Download, Upload, GetApp, ZoomIn, ZoomOut, Refresh } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 import { interactionApi } from "../services/api";
 import OptimizedImage from './OptimizedImage';
@@ -136,6 +136,64 @@ const ExpandButton = styled.button`
   
   &:active {
     transform: scale(0.95);
+  }
+`;
+
+const ZoomControls = styled.div`
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  display: ${props => props.$show ? 'flex' : 'none'};
+  gap: 8px;
+  z-index: 5;
+`;
+
+const ZoomButton = styled.button`
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: rgba(0, 0, 0, 0.8);
+    transform: scale(1.1);
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    
+    &:hover {
+      transform: none;
+      background: rgba(0, 0, 0, 0.6);
+    }
+  }
+`;
+
+const ZoomableMedia = styled.div`
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: scale(${props => props.$zoom});
+  transition: transform 0.3s ease;
+  cursor: ${props => props.$zoom > 1 ? 'grab' : 'default'};
+  
+  &:active {
+    cursor: ${props => props.$zoom > 1 ? 'grabbing' : 'default'};
   }
 `;
 
@@ -530,6 +588,10 @@ const TemplateCard = ({
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [isVideoExpanded, setIsVideoExpanded] = useState(false);
   const [isImageExpanded, setIsImageExpanded] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [isDraggingZoom, setIsDraggingZoom] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [mediaOffset, setMediaOffset] = useState({ x: 0, y: 0 });
   
   // Create media files array from template's imageUrls and videoUrl
   const mediaFiles = useMemo(() => {
@@ -623,6 +685,7 @@ const TemplateCard = ({
       setCurrentMediaIndex(prev => prev > 0 ? prev - 1 : mediaFiles.length - 1);
       setIsVideoExpanded(false);
       setIsImageExpanded(false);
+      resetZoom();
     }
   };
   
@@ -632,6 +695,7 @@ const TemplateCard = ({
       setCurrentMediaIndex(prev => prev < mediaFiles.length - 1 ? prev + 1 : 0);
       setIsVideoExpanded(false);
       setIsImageExpanded(false);
+      resetZoom();
     }
   };
   
@@ -640,6 +704,7 @@ const TemplateCard = ({
     setCurrentMediaIndex(index);
     setIsVideoExpanded(false);
     setIsImageExpanded(false);
+    resetZoom();
   };
   
   // Determine if current media is video
@@ -923,6 +988,41 @@ const TemplateCard = ({
     }
   };
 
+  // Zoom handlers
+  const handleZoomIn = (e) => {
+    e.stopPropagation();
+    setZoom(prev => Math.min(prev + 0.5, 3));
+  };
+
+  const handleZoomOut = (e) => {
+    e.stopPropagation();
+    setZoom(prev => Math.max(prev - 0.5, 1));
+  };
+
+  const handleZoomReset = (e) => {
+    e.stopPropagation();
+    setZoom(1);
+    setMediaOffset({ x: 0, y: 0 });
+  };
+
+  // Reset zoom when switching media or collapsing
+  const resetZoom = () => {
+    setZoom(1);
+    setMediaOffset({ x: 0, y: 0 });
+  };
+
+  // Handle expand/collapse with zoom reset
+  const handleExpandToggle = (e, type) => {
+    e.stopPropagation();
+    if (type === 'video') {
+      setIsVideoExpanded(!isVideoExpanded);
+      if (isVideoExpanded) resetZoom();
+    } else {
+      setIsImageExpanded(!isImageExpanded);
+      if (isImageExpanded) resetZoom();
+    }
+  };
+
   return (
     <Card
       ref={cardRef}
@@ -949,24 +1049,32 @@ const TemplateCard = ({
           const isActive = index === currentMediaIndex;
           
           return isVideo ? (
-            <OptimizedVideo
+            <MediaItem
               key={index}
-              ref={el => videoRefs.current[index] = el}
-              src={media.url}
               $isActive={isActive}
               $expanded={isVideoExpanded}
-              muted
-              loop
-              playsInline
-              placeholder="skeleton"
-              showProgress={true}
-              showPlayButton={false}
               style={{
                 filter: `blur(${cardTransform.blur}px)`,
               }}
-              onClick={() => !isVideoExpanded && setIsVideoExpanded(true)}
-
-            />
+            >
+              <ZoomableMedia $zoom={isVideoExpanded ? zoom : 1}>
+                <OptimizedVideo
+                  ref={el => videoRefs.current[index] = el}
+                  src={media.url}
+                  $isActive={isActive}
+                  $expanded={isVideoExpanded}
+                  expanded={isVideoExpanded}
+                  allowZoom={isVideoExpanded}
+                  muted
+                  loop
+                  playsInline
+                  placeholder="skeleton"
+                  showProgress={true}
+                  showPlayButton={false}
+                  onClick={() => !isVideoExpanded && setIsVideoExpanded(true)}
+                />
+              </ZoomableMedia>
+            </MediaItem>
           ) : (
             <MediaItem
               key={index}
@@ -975,21 +1083,23 @@ const TemplateCard = ({
               style={{
                 filter: `blur(${cardTransform.blur}px)`,
               }}
-              onClick={() => !isImageExpanded && setIsImageExpanded(true)}
             >
-              <OptimizedMediaImage
-                src={media.url}
-                alt={`${template.title || 'Template'} - Image ${index + 1}`}
-                objectFit={isImageExpanded ? 'contain' : 'cover'}
-                priority={index === 0 && isActive}
-                lazy={!isActive || index !== currentMediaIndex}
-                placeholder="skeleton"
-                hover={!isImageExpanded}
-                showProgress={true}
-                fallbackSrc="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f3f4f6'/%3E%3Ctext x='200' y='150' text-anchor='middle' dy='0.3em' font-family='Arial, sans-serif' font-size='16' fill='%236b7280'%3EImage not available%3C/text%3E%3C/svg%3E"
-                maxRetries={2}
-                retryDelay={500}
-              />
+              <ZoomableMedia $zoom={isImageExpanded ? zoom : 1}>
+                <OptimizedMediaImage
+                  src={media.url}
+                  alt={`${template.title || 'Template'} - Image ${index + 1}`}
+                  objectFit={isImageExpanded ? 'contain' : 'cover'}
+                  priority={index === 0 && isActive}
+                  lazy={!isActive || index !== currentMediaIndex}
+                  placeholder="skeleton"
+                  hover={!isImageExpanded}
+                  showProgress={true}
+                  fallbackSrc="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f3f4f6'/%3E%3Ctext x='200' y='150' text-anchor='middle' dy='0.3em' font-family='Arial, sans-serif' font-size='16' fill='%236b7280'%3EImage not available%3C/text%3E%3C/svg%3E"
+                  maxRetries={2}
+                  retryDelay={500}
+                  onClick={() => !isImageExpanded && setIsImageExpanded(true)}
+                />
+              </ZoomableMedia>
             </MediaItem>
           );
         })}
@@ -1023,7 +1133,7 @@ const TemplateCard = ({
         {/* Expand Button for Videos */}
         {mediaFiles[currentMediaIndex] && (mediaFiles[currentMediaIndex].type === 'video' || isCurrentMediaVideo(mediaFiles[currentMediaIndex].url)) && (
           <ExpandButton 
-            onClick={() => setIsVideoExpanded(!isVideoExpanded)}
+            onClick={(e) => handleExpandToggle(e, 'video')}
             aria-label={isVideoExpanded ? "Collapse video" : "Expand video"}
           >
             {isVideoExpanded ? <FullscreenExit fontSize="small" /> : <Fullscreen fontSize="small" />}
@@ -1033,12 +1143,36 @@ const TemplateCard = ({
         {/* Expand Button for Images */}
         {mediaFiles[currentMediaIndex] && mediaFiles[currentMediaIndex].type === 'image' && (
           <ExpandButton 
-            onClick={() => setIsImageExpanded(!isImageExpanded)}
+            onClick={(e) => handleExpandToggle(e, 'image')}
             aria-label={isImageExpanded ? "Collapse image" : "Expand image"}
           >
             {isImageExpanded ? <FullscreenExit fontSize="small" /> : <Fullscreen fontSize="small" />}
           </ExpandButton>
         )}
+        
+        {/* Zoom Controls */}
+        <ZoomControls $show={isVideoExpanded || isImageExpanded}>
+          <ZoomButton
+            onClick={handleZoomOut}
+            disabled={zoom <= 1}
+            title="Zoom Out"
+          >
+            <ZoomOut fontSize="small" />
+          </ZoomButton>
+          <ZoomButton
+            onClick={handleZoomReset}
+            title="Reset Zoom"
+          >
+            <Refresh fontSize="small" />
+          </ZoomButton>
+          <ZoomButton
+            onClick={handleZoomIn}
+            disabled={zoom >= 3}
+            title="Zoom In"
+          >
+            <ZoomIn fontSize="small" />
+          </ZoomButton>
+        </ZoomControls>
       </MediaContainer>
       <CardOverlay />
       
