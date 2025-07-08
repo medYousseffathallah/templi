@@ -186,6 +186,23 @@ export const userApi = {
     
     return api.get(`/users/${userIdStr}/templates`);
   },
+
+  // Get user statistics (templates, favorites, downloads, average rating)
+  getUserStats: (userId) => {
+    // Ensure userId is a string and properly formatted
+    let userIdStr;
+    if (userId && typeof userId === 'object' && userId._id) {
+      // If userId is an object with _id property, use that
+      userIdStr = userId._id.toString();
+    } else {
+      // Otherwise use the userId directly
+      userIdStr = userId.toString();
+    }
+    
+    console.log('Getting user stats - using userId:', userIdStr, 'type:', typeof userIdStr);
+    
+    return api.get(`/users/${userIdStr}/stats`);
+  },
 };
 
 // Interaction API calls

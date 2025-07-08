@@ -225,6 +225,63 @@ router.get("/:id/templates", getUser, async (req, res) => {
   }
 });
 
+// Get user statistics (templates, favorites, downloads, average rating)
+router.get("/:id/stats", getUser, async (req, res) => {
+  try {
+    const Template = require('../models/Template');
+    const Review = require('../models/Review');
+    const Interaction = require('../models/Interaction');
+    
+    console.log('Fetching stats for user:', res.user.username, 'ID:', res.user._id);
+    
+    // Get user's templates
+    const userTemplates = await Template.find({ creator: res.user._id });
+    const templateIds = userTemplates.map(template => template._id);
+    
+    // Count actual favorites and downloads from interactions
+    const favoriteInteractions = await Interaction.countDocuments({
+      template: { $in: templateIds },
+      interactionType: 'favorite'
+    });
+    
+    const downloadInteractions = await Interaction.countDocuments({
+      template: { $in: templateIds },
+      interactionType: 'download'
+    });
+    
+    // Get user's reviews to calculate average rating
+    const userReviews = await Review.find({ reviewedUser: res.user._id });
+    const averageRating = userReviews.length > 0 
+      ? (userReviews.reduce((sum, review) => sum + review.rating, 0) / userReviews.length).toFixed(1)
+      : 0;
+    
+    // Calculate profile completion
+    let profileCompletion = 0;
+    const fields = ['name', 'email', 'bio', 'avatar'];
+    fields.forEach(field => {
+      if (res.user[field]) {
+        profileCompletion += 25;
+      }
+    });
+    
+    const stats = {
+      templatesUploaded: userTemplates.length,
+      totalFavorites: favoriteInteractions,
+      totalDownloads: downloadInteractions,
+      averageRating: parseFloat(averageRating),
+      profileCompletion: profileCompletion,
+      reviewCount: userReviews.length
+    };
+    
+    console.log('User stats calculated:', stats);
+    res.json(stats);
+  } catch (err) {
+    console.error('Error fetching user stats:', err.message);
+    console.error('Error stack:', err.stack);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Remove template from favorites
 router.delete("/:id/favorites/:templateId", getUser, async (req, res) => {
   try {

@@ -429,6 +429,7 @@ function ProfilePage() {
     templatesUploaded: 0,
     totalFavorites: 0,
     totalDownloads: 0,
+    averageRating: 0,
     profileCompletion: 0
   });
   const [userTemplates, setUserTemplates] = useState([]);
@@ -603,7 +604,7 @@ function ProfilePage() {
           }
         ]);
         
-        // Fetch user's templates
+        // Fetch user's templates and stats
         try {
           console.log('About to fetch templates for userId:', targetUserId);
           console.log('Current user object:', currentUser);
@@ -612,29 +613,37 @@ function ProfilePage() {
           const templatesData = templatesResponse.data || templatesResponse;
           setUserTemplates(templatesData);
           
-          // Calculate real stats
-          const totalFavorites = templatesData.reduce((sum, template) => sum + (template.favorites || 0), 0);
-          const totalDownloads = templatesData.reduce((sum, template) => sum + (template.downloads || 0), 0);
+          // Fetch real-time user statistics
+          console.log('Fetching user stats for userId:', targetUserId);
+          const statsResponse = await userApi.getUserStats(targetUserId);
+          console.log('Stats response:', statsResponse);
+          const statsData = statsResponse.data || statsResponse;
           
           setStats({
-            templatesUploaded: templatesData.length,
-            totalFavorites: totalFavorites,
-            totalDownloads: totalDownloads,
-            profileCompletion: calculateProfileCompletion(profileResponse.data)
+            templatesUploaded: statsData.templatesUploaded || 0,
+            totalFavorites: statsData.totalFavorites || 0,
+            totalDownloads: statsData.totalDownloads || 0,
+            averageRating: statsData.averageRating || 0,
+            profileCompletion: statsData.profileCompletion || calculateProfileCompletion(profileResponse.data)
           });
         } catch (templatesError) {
-          console.error('Error fetching templates:', templatesError);
-          console.error('Templates error details:', {
+          console.error('Error fetching templates or stats:', templatesError);
+          console.error('Error details:', {
             status: templatesError.response?.status,
             statusText: templatesError.response?.statusText,
             data: templatesError.response?.data,
             url: templatesError.config?.url
           });
-          // Fallback to mock data if templates API fails
+          // Fallback to basic calculation if API fails
+          const averageRating = reviews.length > 0 
+            ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)
+            : 0;
+            
           setStats({
             templatesUploaded: 0,
             totalFavorites: 0,
             totalDownloads: 0,
+            averageRating: averageRating,
             profileCompletion: calculateProfileCompletion(profileResponse.data)
           });
         }
@@ -642,10 +651,15 @@ function ProfilePage() {
       } catch (error) {
         console.error('Error fetching profile:', error);
         // Fallback to mock data if profile API fails
+        const averageRating = reviews.length > 0 
+          ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)
+          : 0;
+          
         setStats({
           templatesUploaded: 12,
           totalFavorites: 156,
           totalDownloads: 2340,
+          averageRating: averageRating,
           profileCompletion: 75
         });
       } finally {
@@ -929,7 +943,7 @@ function ProfilePage() {
               <Star />
             </StatIcon>
             <StatInfo>
-              <StatValue>4.9</StatValue>
+              <StatValue>{stats.averageRating || 'N/A'}</StatValue>
               <StatLabel>Average Rating</StatLabel>
             </StatInfo>
           </StatContent>
